@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useSocket } from '../context/SocketContext';
-import { appointmentService, labService, bloodService, feedbackService } from '../services/api';
+import { appointmentService, labService, feedbackService } from '../services/api';
 import { PriorityBadge } from '../components/PriorityBadge';
 import { ReportViewerModal } from '../components/ReportViewerModal';
 import {
@@ -41,7 +41,6 @@ export const PatientDashboard = ({ onNavigate }) => {
 
   const [appointments, setAppointments] = useState([]);
   const [labBookings, setLabBookings] = useState([]);
-  const [bloodRequests, setBloodRequests] = useState([]);
   const [medicalHistory, setMedicalHistory] = useState(null);
   const [myFeedbacks, setMyFeedbacks] = useState([]);
   const [feedbackSuccess, setFeedbackSuccess] = useState(false);
@@ -72,10 +71,9 @@ export const PatientDashboard = ({ onNavigate }) => {
   const fetchPatientData = async () => {
     try {
       setLoading(true);
-      const [apptRes, labRes, bloodRes, medHistRes, feedbackRes] = await Promise.all([
+      const [apptRes, labRes, medHistRes, feedbackRes] = await Promise.all([
         appointmentService.getMy(),
         labService.getBookings(),
-        bloodService.getRequests(),
         appointmentService.getMyMedicalHistory().catch(() => ({ data: null })),
         feedbackService.getMy().catch(() => ({ data: { feedbacks: [] } }))
       ]);
@@ -87,11 +85,6 @@ export const PatientDashboard = ({ onNavigate }) => {
       if (feedbackRes && feedbackRes.data) {
         setMyFeedbacks(feedbackRes.data.feedbacks || []);
       }
-      // Filter blood requests made by or for this patient
-      const myBloodReqs = (bloodRes.data.requests || []).filter(
-        r => r.requester === user?.id || r.requester === user?._id || r.patientName?.toLowerCase().includes(user?.name?.toLowerCase() || '')
-      );
-      setBloodRequests(myBloodReqs);
     } catch (err) {
       console.error('Error fetching patient data:', err);
     } finally {
@@ -816,7 +809,6 @@ export const PatientDashboard = ({ onNavigate }) => {
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
                   >
                     <option value="OPD Consultation">OPD Doctor Consultation</option>
-                    <option value="Blood Bank Service">Blood Bank & Donation</option>
                     <option value="Diagnostic Lab Tests">Diagnostic Lab Tests</option>
                     <option value="Staff & Nursing">Nursing & Reception Staff</option>
                     <option value="Overall Hospital Facility">Overall Hospital Facility</option>

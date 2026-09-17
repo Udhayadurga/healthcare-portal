@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useAuth } from './context/AuthContext';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
-import { EmergencyAlertModal } from './components/EmergencyAlertModal';
 
 // Pages
 import { LandingPage } from './pages/LandingPage';
@@ -11,10 +10,8 @@ import { RegisterPage } from './pages/RegisterPage';
 import { PatientDashboard } from './pages/PatientDashboard';
 import { DoctorDashboard } from './pages/DoctorDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
-import { DonorDashboard } from './pages/DonorDashboard';
 import { BookAppointmentPage } from './pages/BookAppointmentPage';
 import { BookLabTestPage } from './pages/BookLabTestPage';
-import { BloodPortalPage } from './pages/BloodPortalPage';
 import { QueueTrackerPage } from './pages/QueueTrackerPage';
 
 export function App() {
@@ -46,17 +43,14 @@ export function App() {
       case '/':
         if (user.role === 'admin') return <AdminDashboard onNavigate={navigate} />;
         if (user.role === 'doctor') return <DoctorDashboard onNavigate={navigate} />;
-        if (user.role === 'donor') return <DonorDashboard onNavigate={navigate} />;
         return <PatientDashboard onNavigate={navigate} />;
       case '/login':
         if (user.role === 'admin') return <AdminDashboard onNavigate={navigate} />;
         if (user.role === 'doctor') return <DoctorDashboard onNavigate={navigate} />;
-        if (user.role === 'donor') return <DonorDashboard onNavigate={navigate} />;
         return <PatientDashboard onNavigate={navigate} />;
       case '/register':
         if (user.role === 'admin') return <AdminDashboard onNavigate={navigate} />;
         if (user.role === 'doctor') return <DoctorDashboard onNavigate={navigate} />;
-        if (user.role === 'donor') return <DonorDashboard onNavigate={navigate} />;
         return <PatientDashboard onNavigate={navigate} />;
       case '/patient-dashboard':
         return <PatientDashboard onNavigate={navigate} />;
@@ -64,8 +58,6 @@ export function App() {
         return <DoctorDashboard onNavigate={navigate} />;
       case '/admin-dashboard':
         return <AdminDashboard onNavigate={navigate} />;
-      case '/donor-dashboard':
-        return <DonorDashboard onNavigate={navigate} />;
       case '/book-appointment':
         if (user.role === 'admin') return <AdminDashboard onNavigate={navigate} />;
         if (user.role === 'doctor') return <DoctorDashboard onNavigate={navigate} />;
@@ -74,14 +66,11 @@ export function App() {
         if (user.role === 'admin') return <AdminDashboard onNavigate={navigate} />;
         if (user.role === 'doctor') return <DoctorDashboard onNavigate={navigate} />;
         return <BookLabTestPage onNavigate={navigate} />;
-      case '/blood-bank':
-        return <BloodPortalPage onNavigate={navigate} />;
       case '/queue-tracker':
         return <QueueTrackerPage onNavigate={navigate} />;
       default:
         if (user.role === 'admin') return <AdminDashboard onNavigate={navigate} />;
         if (user.role === 'doctor') return <DoctorDashboard onNavigate={navigate} />;
-        if (user.role === 'donor') return <DonorDashboard onNavigate={navigate} />;
         return <PatientDashboard onNavigate={navigate} />;
     }
   };
@@ -108,9 +97,6 @@ export function App() {
           {renderCurrentPage()}
         </main>
       </div>
-
-      {/* Floating Emergency Toast Alert */}
-      <EmergencyAlertModal />
     </div>
   );
 }

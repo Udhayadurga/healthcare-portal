@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { adminService, bloodService, feedbackService, labService } from '../services/api';
+import { adminService, feedbackService, labService } from '../services/api';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -36,7 +36,8 @@ import {
   Eye,
   Send,
   Sparkles,
-  Filter
+  Filter,
+  Activity
 } from 'lucide-react';
 
 ChartJS.register(
@@ -54,15 +55,13 @@ ChartJS.register(
 export const AdminDashboard = () => {
   const { user } = useAuth();
   const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState('analytics'); // 'analytics' | 'inventory' | 'doctors' | 'users'
+  const [activeTab, setActiveTab] = useState('analytics'); // 'analytics' | 'doctors' | 'lab-tests' | 'feedback' | 'users'
   const [analytics, setAnalytics] = useState(null);
   const [usersList, setUsersList] = useState([]);
-  const [bloodInventory, setBloodInventory] = useState([]);
-  const [donorsList, setDonorsList] = useState([]);
   const [feedbacksList, setFeedbacksList] = useState([]);
   const [feedbackFilter, setFeedbackFilter] = useState({ category: 'All', rating: 'All' });
   const [feedbackReplyText, setFeedbackReplyText] = useState({});
-  const [selectedDonorDetail, setSelectedDonorDetail] = useState(null);
+  const [selectedDoctorDetail, setSelectedDoctorDetail] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Diagnostic Lab Tests Catalog State
@@ -121,18 +120,14 @@ export const AdminDashboard = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [analyticsRes, usersRes, bloodRes, donorsRes, feedbackRes, labTestsRes] = await Promise.all([
+      const [analyticsRes, usersRes, feedbackRes, labTestsRes] = await Promise.all([
         adminService.getAnalytics(),
         adminService.getUsers(),
-        bloodService.getInventory(),
-        bloodService.getAllDonorsAdmin(),
         feedbackService.getAllAdmin(),
         labService.getTests()
       ]);
       setAnalytics(analyticsRes.data);
       setUsersList(usersRes.data.users || []);
-      setBloodInventory(bloodRes.data.inventory || []);
-      setDonorsList(donorsRes.data.donors || []);
       setFeedbacksList(feedbackRes.data.feedbacks || []);
       setLabTestsList(labTestsRes.data.tests || []);
     } catch (err) {
@@ -182,15 +177,6 @@ export const AdminDashboard = () => {
       alert('Feedback updated successfully!');
     } catch (err) {
       alert('Error updating feedback');
-    }
-  };
-
-  const handleRestockBlood = async (bloodGroup, delta) => {
-    try {
-      await bloodService.updateInventory(bloodGroup, { unitsDelta: delta });
-      fetchData();
-    } catch (err) {
-      alert(err.response?.data?.message || 'Error updating stock');
     }
   };
 
@@ -313,23 +299,6 @@ export const AdminDashboard = () => {
     ]
   };
 
-  // Prepare Blood Stock Chart Data
-  const bloodLabels = bloodInventory.map(b => b.bloodGroup);
-  const bloodUnits = bloodInventory.map(b => b.unitsAvailable);
-  const bloodColors = bloodInventory.map(b => b.unitsAvailable <= b.criticalThreshold ? '#ef4444' : '#0284c7');
-
-  const bloodChartData = {
-    labels: bloodLabels,
-    datasets: [
-      {
-        label: 'Units in Stock',
-        data: bloodUnits,
-        backgroundColor: bloodColors,
-        borderRadius: 6
-      }
-    ]
-  };
-
   return (
     <div className="space-y-8 pb-16">
       {/* Admin Header */}
@@ -369,20 +338,12 @@ export const AdminDashboard = () => {
             <Stethoscope className="w-3.5 h-3.5" /> {t('tabDoctors')}
           </button>
           <button
-            onClick={() => setActiveTab('inventory')}
+            onClick={() => setActiveTab('lab-tests')}
             className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-              activeTab === 'inventory' ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white'
+              activeTab === 'lab-tests' ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white'
             }`}
           >
-            <Heart className="w-3.5 h-3.5" /> {t('tabBloodStock')}
-          </button>
-          <button
-            onClick={() => setActiveTab('donors')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-              activeTab === 'donors' ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Heart className="w-3.5 h-3.5 text-rose-400" /> {t('tabDonors')} ({donorsList.length})
+            <FlaskConical className="w-3.5 h-3.5 text-emerald-400" /> {t('tabLabCatalog')} ({labTestsList.length})
           </button>
           <button
             onClick={() => setActiveTab('feedback')}
@@ -391,14 +352,6 @@ export const AdminDashboard = () => {
             }`}
           >
             <MessageSquare className="w-3.5 h-3.5 text-amber-400" /> {t('tabFeedback')} ({feedbacksList.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('lab-tests')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-              activeTab === 'lab-tests' ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <FlaskConical className="w-3.5 h-3.5 text-emerald-400" /> {t('tabLabCatalog')} ({labTestsList.length})
           </button>
           <button
             onClick={() => setActiveTab('users')}
@@ -412,7 +365,7 @@ export const AdminDashboard = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
           <span className="text-[11px] text-slate-500 font-semibold block">{t('kpiTotalAppointments')}</span>
           <div className="text-2xl font-black text-slate-900 mt-1">{analytics?.metrics?.totalAppointments || 0}</div>
@@ -437,12 +390,6 @@ export const AdminDashboard = () => {
             {usersList.filter(u => u.role === 'doctor').length || analytics?.metrics?.totalDoctors || 0}
           </div>
           <span className="text-[10px] text-blue-600 font-bold">Admin Managed</span>
-        </div>
-
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-          <span className="text-[11px] text-slate-500 font-semibold block">Blood Donors</span>
-          <div className="text-2xl font-black text-rose-600 mt-1">{analytics?.metrics?.totalDonors || 0}</div>
-          <span className="text-[10px] text-slate-400">Registered</span>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
@@ -490,27 +437,6 @@ export const AdminDashboard = () => {
                   }}
                 />
               </div>
-            </div>
-          </div>
-
-          {/* Blood Inventory Chart & Critical Alerts */}
-          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h3 className="font-bold text-slate-900 text-base">Blood Bank Inventory Status (All 8 Groups)</h3>
-                <p className="text-xs text-slate-500">Red bars denote blood groups at or below critical safety threshold (&le; 5 units)</p>
-              </div>
-            </div>
-
-            <div className="h-64">
-              <Bar
-                data={bloodChartData}
-                options={{
-                  maintainAspectRatio: false,
-                  plugins: { legend: { display: false } },
-                  scales: { y: { beginAtZero: true } }
-                }}
-              />
             </div>
           </div>
         </div>
@@ -599,6 +525,13 @@ export const AdminDashboard = () => {
                       </td>
                       <td className="p-3.5 text-right space-x-2">
                         <button
+                          onClick={() => setSelectedDoctorDetail(doc)}
+                          className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-lg transition inline-flex items-center gap-1"
+                          title="View Doctor Profile & Clinical Credentials"
+                        >
+                          <Eye className="w-3 h-3" /> View Details
+                        </button>
+                        <button
                           onClick={() => handleOpenEditDoctor(doc)}
                           className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition"
                         >
@@ -616,66 +549,6 @@ export const AdminDashboard = () => {
                 )}
               </tbody>
             </table>
-          </div>
-        </div>
-      )}
-
-      {/* Blood Inventory Tab */}
-      {activeTab === 'inventory' && (
-        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-          <div className="flex justify-between items-center border-b border-slate-100 pb-4">
-            <div>
-              <h3 className="font-bold text-slate-900 text-lg">Manage Blood Stock Units</h3>
-              <p className="text-xs text-slate-500">Restock units, update safety thresholds, and monitor reserve quantities</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {bloodInventory.map((item) => (
-              <div
-                key={item.bloodGroup}
-                className={`p-5 rounded-2xl border ${
-                  item.unitsAvailable <= item.criticalThreshold
-                    ? 'bg-rose-50 border-rose-300'
-                    : 'bg-slate-50 border-slate-200'
-                } space-y-3`}
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className="text-2xl font-black text-slate-900">{item.bloodGroup}</span>
-                    <span className="text-[10px] text-slate-500 block">Critical Threshold: {item.criticalThreshold}</span>
-                  </div>
-                  <span className={`text-xl font-bold font-mono ${
-                    item.unitsAvailable <= item.criticalThreshold ? 'text-rose-700' : 'text-slate-800'
-                  }`}>
-                    {item.unitsAvailable} <span className="text-xs font-normal">units</span>
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2 pt-2 border-t border-slate-200/60">
-                  <button
-                    onClick={() => handleRestockBlood(item.bloodGroup, -1)}
-                    disabled={item.unitsAvailable <= 0}
-                    className="flex-1 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-700"
-                  >
-                    -1 Issue
-                  </button>
-                  <button
-                    onClick={() => handleRestockBlood(item.bloodGroup, 1)}
-                    className="flex-1 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-bold shadow-xs"
-                  >
-                    +1 Restock
-                  </button>
-                  <button
-                    onClick={() => handleRestockBlood(item.bloodGroup, 5)}
-                    className="py-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold"
-                    title="Add 5 units batch"
-                  >
-                    +5
-                  </button>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       )}
@@ -716,7 +589,6 @@ export const AdminDashboard = () => {
                       <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] uppercase ${
                         u.role === 'admin' ? 'bg-purple-100 text-purple-700' :
                         u.role === 'doctor' ? 'bg-blue-100 text-blue-700' :
-                        u.role === 'donor' ? 'bg-rose-100 text-rose-700' :
                         'bg-emerald-100 text-emerald-700'
                       }`}>
                         {u.role}
@@ -760,7 +632,6 @@ export const AdminDashboard = () => {
               >
                 <option value="All">All Categories</option>
                 <option value="OPD Consultation">OPD Consultation</option>
-                <option value="Blood Bank Service">Blood Bank</option>
                 <option value="Diagnostic Lab Tests">Diagnostic Lab</option>
                 <option value="Staff & Nursing">Staff & Nursing</option>
                 <option value="Overall Hospital Facility">Hospital Facility</option>
@@ -1022,112 +893,6 @@ export const AdminDashboard = () => {
         </div>
       )}
 
-      {/* Donors Directory Tab (Admin can see old user & new user details) */}
-      {activeTab === 'donors' && (
-        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-          <div className="flex flex-wrap justify-between items-center gap-4 border-b border-slate-100 pb-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <Heart className="w-5 h-5 text-rose-600 fill-rose-500" />
-                <h3 className="font-bold text-slate-900 text-lg">Voluntary Blood Donors Repository</h3>
-              </div>
-              <p className="text-xs text-slate-500">
-                Full registry of registered donors, eligibility countdowns, contact details, and clinical health history
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs bg-rose-100 text-rose-800 font-bold px-3 py-1 rounded-full">
-                {donorsList.length} Registered Donors
-              </span>
-              <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-3 py-1 rounded-full">
-                {donorsList.filter(d => d.isEligible).length} Eligible Now
-              </span>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
-              <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
-                <tr>
-                  <th className="p-3">Donor Name</th>
-                  <th className="p-3">Blood Group</th>
-                  <th className="p-3">Age / Gender</th>
-                  <th className="p-3">Phone & Email</th>
-                  <th className="p-3">Location / City</th>
-                  <th className="p-3">Eligibility Status</th>
-                  <th className="p-3">Total Donations</th>
-                  <th className="p-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {donorsList.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="p-8 text-center text-slate-400">
-                      No blood donors registered in the portal yet.
-                    </td>
-                  </tr>
-                ) : (
-                  donorsList.map((donor) => (
-                    <tr key={donor._id} className="hover:bg-slate-50">
-                      <td className="p-3 font-bold text-slate-900">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center font-bold text-[11px]">
-                            {donor.name.charAt(0)}
-                          </div>
-                          <div>
-                            <div>{donor.name}</div>
-                            <span className="text-[10px] text-slate-400">Reg: {new Date(donor.createdAt).toLocaleDateString()}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-3">
-                        <span className="bg-rose-100 text-rose-800 font-extrabold px-2.5 py-1 rounded-md font-mono text-xs">
-                          {donor.bloodGroup}
-                        </span>
-                      </td>
-                      <td className="p-3 text-slate-700">
-                        {donor.age} Yrs / {donor.gender || 'Male'}
-                        <span className="block text-[10px] text-slate-400">{donor.weightKg || 65} kg</span>
-                      </td>
-                      <td className="p-3 text-slate-700">
-                        <div className="font-semibold">{donor.phone}</div>
-                        <div className="text-[11px] text-slate-500">{donor.email || '—'}</div>
-                      </td>
-                      <td className="p-3 text-slate-700">
-                        <div className="font-semibold">{donor.city}</div>
-                        <div className="text-[11px] text-slate-400">{donor.locationArea || donor.address || 'Central'}</div>
-                      </td>
-                      <td className="p-3">
-                        {donor.isEligible ? (
-                          <span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full text-[10px]">
-                            Eligible
-                          </span>
-                        ) : (
-                          <span className="bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full text-[10px]">
-                            Wait ({donor.daysRemaining || 0}d)
-                          </span>
-                        )}
-                      </td>
-                      <td className="p-3 text-slate-800 font-mono font-bold">
-                        {donor.donationHistory?.length || 0} times
-                      </td>
-                      <td className="p-3 text-right">
-                        <button
-                          onClick={() => setSelectedDonorDetail(donor)}
-                          className="inline-flex items-center gap-1 text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-2.5 py-1 rounded-lg text-[11px] font-bold transition"
-                        >
-                          <Eye className="w-3 h-3" /> View Details
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
       {/* Patient Feedback Management Tab (Admin can see all patient feedback) */}
       {activeTab === 'feedback' && (
         <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
@@ -1221,110 +986,136 @@ export const AdminDashboard = () => {
         </div>
       )}
 
-      {/* Selected Donor Full Details Modal for Admin */}
-      {selectedDonorDetail && (
+      {/* Doctor Details Modal */}
+      {selectedDoctorDetail && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl shadow-2xl max-w-xl w-full p-6 sm:p-8 border border-slate-200 space-y-5 my-8">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <Heart className="w-5 h-5 text-rose-600 fill-rose-500" />
-                <h3 className="font-bold text-lg text-slate-900">
-                  Donor Full Profile & Medical Records
-                </h3>
+            <div className="flex justify-between items-start border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 font-bold text-lg">
+                  <Stethoscope className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg text-slate-900 flex items-center gap-2">
+                    {selectedDoctorDetail.name}
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                      selectedDoctorDetail.doctorProfile?.availabilityStatus === 'Available'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-amber-100 text-amber-800'
+                    }`}>
+                      {selectedDoctorDetail.doctorProfile?.availabilityStatus || 'Available'}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-blue-600 font-semibold">
+                    {selectedDoctorDetail.doctorProfile?.specialization || 'Consultant Specialist'} • {selectedDoctorDetail.doctorProfile?.department || 'General Medicine'}
+                  </p>
+                </div>
               </div>
               <button
-                onClick={() => setSelectedDonorDetail(null)}
-                className="text-slate-400 hover:text-slate-600 font-bold"
+                onClick={() => setSelectedDoctorDetail(null)}
+                className="text-slate-400 hover:text-slate-600 font-bold text-sm p-1"
               >
                 ✕
               </button>
             </div>
 
             <div className="space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+              {/* Doctor Credentials & Contact Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
                 <div>
-                  <span className="text-slate-400 block font-semibold">Donor Name</span>
-                  <span className="font-bold text-slate-900 text-sm">{selectedDonorDetail.name}</span>
+                  <span className="text-slate-400 block font-semibold text-[11px]">Email Address</span>
+                  <span className="font-semibold text-slate-800 break-all">{selectedDoctorDetail.email}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block font-semibold">Blood Group</span>
-                  <span className="font-extrabold text-rose-700 text-base font-mono">{selectedDonorDetail.bloodGroup}</span>
+                  <span className="text-slate-400 block font-semibold text-[11px]">Contact Phone</span>
+                  <span className="font-semibold text-slate-800">{selectedDoctorDetail.phone || 'Not provided'}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block font-semibold">Phone</span>
-                  <span className="font-semibold text-slate-800">{selectedDonorDetail.phone}</span>
+                  <span className="text-slate-400 block font-semibold text-[11px]">Experience</span>
+                  <span className="font-semibold text-slate-800">{selectedDoctorDetail.doctorProfile?.experienceYears || 5} Years</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block font-semibold">Email</span>
-                  <span className="font-semibold text-slate-800">{selectedDonorDetail.email || '—'}</span>
+                  <span className="text-slate-400 block font-semibold text-[11px]">OPD Room No</span>
+                  <span className="font-mono font-bold text-slate-900">{selectedDoctorDetail.doctorProfile?.roomNumber || 'OPD-101'}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block font-semibold">City & Address</span>
-                  <span className="font-semibold text-slate-800">
-                    {selectedDonorDetail.city} ({selectedDonorDetail.locationArea || selectedDonorDetail.address || 'Central'})
-                  </span>
+                  <span className="text-slate-400 block font-semibold text-[11px]">Consultation Fee</span>
+                  <span className="font-extrabold text-emerald-700 text-sm">₹{selectedDoctorDetail.doctorProfile?.consultationFee || 500}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block font-semibold">Age / Gender / Weight</span>
-                  <span className="font-semibold text-slate-800">
-                    {selectedDonorDetail.age} Yrs / {selectedDonorDetail.gender || 'Male'} / {selectedDonorDetail.weightKg || 65} kg
-                  </span>
+                  <span className="text-slate-400 block font-semibold text-[11px]">Department</span>
+                  <span className="font-semibold text-blue-700">{selectedDoctorDetail.doctorProfile?.department || 'General Medicine'}</span>
                 </div>
               </div>
 
-              {/* Medical History Section */}
-              <div className="bg-rose-50/50 p-4 rounded-2xl border border-rose-200 space-y-2">
-                <h4 className="font-bold text-rose-950 flex items-center gap-1.5">
-                  <Activity className="w-4 h-4 text-rose-600" />
-                  Clinical & Medical History:
+              {/* Consultation Days & Availability */}
+              <div className="bg-blue-50/40 p-4 rounded-2xl border border-blue-100 space-y-2">
+                <h4 className="font-bold text-blue-950 flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4 text-blue-600" />
+                  Weekly Duty & Consultation Days:
                 </h4>
-                <div className="grid grid-cols-2 gap-2 text-slate-700">
-                  <div>
-                    <span>Chronic Condition: </span>
-                    <strong>{selectedDonorDetail.medicalHistory?.hasChronicDiseases ? 'Yes (Reported)' : 'None reported'}</strong>
-                  </div>
-                  <div>
-                    <span>Recent Surgery: </span>
-                    <strong>{selectedDonorDetail.medicalHistory?.hadRecentSurgery ? 'Yes' : 'No'}</strong>
-                  </div>
-                  <div>
-                    <span>Tattoo / Piercing: </span>
-                    <strong>{selectedDonorDetail.medicalHistory?.hadTattooRecently ? 'Yes (Past 6m)' : 'No'}</strong>
-                  </div>
-                  <div>
-                    <span>Hemoglobin Level: </span>
-                    <strong>{selectedDonorDetail.medicalHistory?.hemoglobinLevel || 13.5} g/dL</strong>
-                  </div>
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {(selectedDoctorDetail.doctorProfile?.availableDays && selectedDoctorDetail.doctorProfile.availableDays.length > 0
+                    ? selectedDoctorDetail.doctorProfile.availableDays
+                    : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+                  ).map((day, idx) => (
+                    <span
+                      key={idx}
+                      className="px-2.5 py-1 bg-white text-blue-800 font-semibold rounded-lg text-[11px] border border-blue-200 shadow-sm"
+                    >
+                      {day}
+                    </span>
+                  ))}
                 </div>
-                {selectedDonorDetail.medicalHistory?.notes && (
-                  <p className="text-slate-600 text-[11px] pt-1">
-                    Notes: {selectedDonorDetail.medicalHistory.notes}
+              </div>
+
+              {/* Consultation Time Slots */}
+              <div className="border border-slate-200 rounded-2xl p-4 space-y-2">
+                <h4 className="font-bold text-slate-900 flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-slate-600" />
+                  Consultation Time Slots:
+                </h4>
+                {selectedDoctorDetail.doctorProfile?.availableTimeSlots?.length ? (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {selectedDoctorDetail.doctorProfile.availableTimeSlots.map((slot, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2.5 py-1 bg-slate-100 text-slate-700 font-mono font-medium rounded-lg text-[11px] border border-slate-200"
+                      >
+                        {slot}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-slate-500 text-[11px]">
+                    Standard Clinical Hours: 09:00 AM - 01:00 PM (Morning) & 04:00 PM - 08:00 PM (Evening)
                   </p>
                 )}
               </div>
 
-              {/* Donation History */}
-              <div className="border border-slate-200 rounded-2xl p-4 space-y-2">
-                <h4 className="font-bold text-slate-900">Donation History ({selectedDonorDetail.donationHistory?.length || 0} times)</h4>
-                {selectedDonorDetail.donationHistory?.length ? (
-                  <div className="space-y-1 max-h-36 overflow-y-auto">
-                    {selectedDonorDetail.donationHistory.map((dh, idx) => (
-                      <div key={idx} className="flex justify-between items-center text-[11px] bg-slate-50 p-2 rounded-lg">
-                        <span>{new Date(dh.donationDate).toLocaleDateString()} - {dh.hospitalName || 'MEDCARE HOSPITAL'}</span>
-                        <span className="font-mono font-bold text-rose-700">{dh.units || 1} unit(s)</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-slate-400 text-[11px]">No prior donations recorded yet.</p>
-                )}
+              {/* Hospital Affiliation Info */}
+              <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl text-slate-500 text-[11px]">
+                <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
+                <span>Affiliated with <strong>MEDCARE HOSPITAL</strong> Central Campus. All clinical appointments managed through hospital scheduling.</span>
               </div>
             </div>
 
-            <div className="pt-2 text-right">
+            <div className="pt-2 flex justify-end items-center gap-2 border-t border-slate-100">
               <button
-                onClick={() => setSelectedDonorDetail(null)}
-                className="bg-slate-800 text-white font-bold px-4 py-2 rounded-xl text-xs"
+                type="button"
+                onClick={() => {
+                  const doc = selectedDoctorDetail;
+                  setSelectedDoctorDetail(null);
+                  handleOpenEditDoctor(doc);
+                }}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-sm"
+              >
+                Edit Doctor Profile
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedDoctorDetail(null)}
+                className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded-xl text-xs transition"
               >
                 Close Window
               </button>

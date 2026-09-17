@@ -16,6 +16,36 @@ import {
   ArrowRight
 } from 'lucide-react';
 
+// Time helpers to ensure no past timing booking and only future timings are visible
+const getTodayDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const isSlotInPast = (dateStr, slotTimeStr) => {
+  const now = new Date();
+  const todayStr = getTodayDateString();
+  if (dateStr < todayStr) return true;
+  if (dateStr > todayStr) return false;
+
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const match = (slotTimeStr || '').match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return false;
+  let [_, hours, minutes, period] = match;
+  hours = parseInt(hours, 10);
+  minutes = parseInt(minutes, 10);
+  if (period.toUpperCase() === 'PM' && hours < 12) hours += 12;
+  if (period.toUpperCase() === 'AM' && hours === 12) hours = 0;
+  const slotDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+  return slotDate <= now;
+};
+
+const ALL_LAB_WINDOWS = ['07:30 AM', '08:30 AM', '09:30 AM', '10:30 AM', '11:30 AM', '02:30 PM', '04:30 PM'];
+const categories = ['All', 'Pathology', 'Radiology', 'Cardiology', 'Biochemistry', 'Microbiology'];
+
 export const BookLabTestPage = ({ onNavigate }) => {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -26,8 +56,27 @@ export const BookLabTestPage = ({ onNavigate }) => {
   const [selectedTest, setSelectedTest] = useState(null);
 
   // Booking fields
-  const [bookingDate, setBookingDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [slotTime, setSlotTime] = useState('08:30 AM');
+  const todayStr = getTodayDateString();
+  const [bookingDate, setBookingDate] = useState(() => getTodayDateString());
+  const isPastDate = bookingDate < todayStr;
+  const isToday = bookingDate === todayStr;
+
+  // Filter lab windows so only future timings are visible to users
+  const visibleLabSlots = ALL_LAB_WINDOWS.filter((slot) => {
+    if (isPastDate) return false;
+    if (isToday && isSlotInPast(bookingDate, slot)) return false;
+    return true;
+  });
+
+  const [slotTime, setSlotTime] = useState('');
+
+  // Automatically ensure slotTime selects a valid future slot
+  useEffect(() => {
+    if (!visibleLabSlots.includes(slotTime)) {
+      setSlotTime(visibleLabSlots[0] || '');
+    }
+  }, [visibleLabSlots, slotTime]);
+
   const [isHomeCollection, setIsHomeCollection] = useState(false);
   const [collectionAddress, setCollectionAddress] = useState(user?.city || 'Chennai');
   const [userAppointments, setUserAppointments] = useState([]);
@@ -71,6 +120,11 @@ export const BookLabTestPage = ({ onNavigate }) => {
   const handleConfirmLabBooking = async (e) => {
     e.preventDefault();
     if (!selectedTest) return;
+
+    if (bookingDate < todayStr || isSlotInPast(bookingDate, slotTime)) {
+      setError('Cannot book diagnostic lab tests for past dates or past time slots. Please choose a future timing.');
+      return;
+    }
 
     try {
       setError('');
@@ -235,28 +289,44 @@ export const BookLabTestPage = ({ onNavigate }) => {
             )}
 
             <div>
-              <label className="block font-bold text-slate-700 mb-1">Collection Date</label>
+              <div className="flex justify-between items-center mb-1">
+                <label className="block font-bold text-slate-700">Collection Date</label>
+                <span className="text-[10px] text-slate-400">Only future dates available</span>
+              </div>
               <input
                 type="date"
                 required
                 value={bookingDate}
-                min={new Date().toISOString().split('T')[0]}
+                min={todayStr}
                 onChange={(e) => setBookingDate(e.target.value)}
-                className="w-full p-2 bg-slate-50 border rounded-xl"
+                className="w-full p-2 bg-slate-50 border rounded-xl focus:ring-2 focus:ring-emerald-500"
               />
             </div>
 
             <div>
               <label className="block font-bold text-slate-700 mb-1">Time Window</label>
-              <select
-                value={slotTime}
-                onChange={(e) => setSlotTime(e.target.value)}
-                className="w-full p-2 bg-slate-50 border rounded-xl"
-              >
-                {['07:30 AM', '08:30 AM', '09:30 AM', '10:30 AM', '11:30 AM', '02:30 PM', '04:30 PM'].map(t => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
+              {isPastDate ? (
+                <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs">
+                  Past dates cannot be selected. Please choose today or a future date.
+                </div>
+              ) : visibleLabSlots.length === 0 ? (
+                <div className="p-2.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs space-y-1">
+                  <div className="font-bold">All collection windows for today have passed</div>
+                  <p className="text-[10px] text-amber-700">
+                    Diagnostic collection windows close once the time has passed. Please choose tomorrow or another future date above.
+                  </p>
+                </div>
+              ) : (
+                <select
+                  value={slotTime}
+                  onChange={(e) => setSlotTime(e.target.value)}
+                  className="w-full p-2 bg-slate-50 border rounded-xl focus:ring-2 focus:ring-emerald-500"
+                >
+                  {visibleLabSlots.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {/* Home Collection Option */}
@@ -312,8 +382,8 @@ export const BookLabTestPage = ({ onNavigate }) => {
 
             <button
               type="submit"
-              disabled={!selectedTest}
-              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2"
+              disabled={!selectedTest || visibleLabSlots.length === 0 || !slotTime || isPastDate}
+              className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2"
             >
               <span>Confirm Lab Booking</span>
               <ArrowRight className="w-4 h-4" />

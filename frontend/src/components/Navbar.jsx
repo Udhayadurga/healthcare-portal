@@ -30,8 +30,6 @@ export const Navbar = ({ onToggleSidebar }) => {
         return <span className="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-purple-200 uppercase tracking-wide">{t('roleAdmin')}</span>;
       case 'doctor':
         return <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-200 uppercase tracking-wide">{t('roleDoctor')}</span>;
-      case 'donor':
-        return <span className="bg-rose-100 text-rose-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-rose-200 uppercase tracking-wide">{t('roleDonor')}</span>;
       default:
         return <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-200 uppercase tracking-wide">{t('rolePatient')}</span>;
     }

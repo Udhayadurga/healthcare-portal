@@ -85,7 +85,7 @@ export const NotificationDropdown = ({ isOpen, onClose }) => {
               }`}
             >
               <div className="mt-0.5">
-                {n.type === 'emergency_blood' ? (
+                {n.type === 'emergency_alert' || n.type === 'emergency' ? (
                   <Flame className="w-4 h-4 text-red-600 animate-pulse" />
                 ) : n.type === 'appointment_update' ? (
                   <Calendar className="w-4 h-4 text-sky-600" />

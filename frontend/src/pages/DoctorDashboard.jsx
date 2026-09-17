@@ -89,12 +89,6 @@ export const DoctorDashboard = () => {
   const [loadingDeptDoctors, setLoadingDeptDoctors] = useState(false);
   const [submittingReferral, setSubmittingReferral] = useState(false);
 
-  // Emergency blood broadcast modal
-  const [showBloodModal, setShowBloodModal] = useState(false);
-  const [bloodGroupReq, setBloodGroupReq] = useState('O-');
-  const [bloodUnitsReq, setBloodUnitsReq] = useState(2);
-  const [bloodReasonReq, setBloodReasonReq] = useState('Acute clinical emergency');
-
   // Patient history drawer
   const [patientHistoryData, setPatientHistoryData] = useState(null);
 
@@ -391,22 +385,6 @@ export const DoctorDashboard = () => {
     }
   };
 
-  const handleDispatchEmergencyBlood = async (e) => {
-    e.preventDefault();
-    try {
-      await doctorService.requestEmergencyBlood({
-        patientName: activeConsultationAppt ? activeConsultationAppt.patientName : 'OPD Emergency Patient',
-        bloodGroup: bloodGroupReq,
-        unitsRequired: Number(bloodUnitsReq),
-        reason: bloodReasonReq
-      });
-      setShowBloodModal(false);
-      alert(`Critical emergency broadcast sent to all matching ${bloodGroupReq} blood donors & admins!`);
-    } catch (err) {
-      alert(err.response?.data?.message || 'Blood request failed');
-    }
-  };
-
   const handleViewPatientHistory = async (patientId) => {
     try {
       const pId = typeof patientId === 'object' ? patientId._id : patientId;
@@ -587,14 +565,6 @@ export const DoctorDashboard = () => {
                 : 'Cross-department inter-specialist referrals prioritized by clinical urgency level (Immediate STAT, Urgent, Routine)'}
             </p>
           </div>
-
-          <button
-            onClick={() => setShowBloodModal(true)}
-            className="flex items-center gap-2 bg-rose-600 hover:bg-rose-500 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-md transition"
-          >
-            <Flame className="w-4 h-4" />
-            <span>{t('emergencyBloodBroadcast')}</span>
-          </button>
         </div>
 
         {((activeQueueTab === 'opd' ? todayQueue : referredQueue).length === 0) ? (
@@ -1216,71 +1186,6 @@ export const DoctorDashboard = () => {
                   className="px-5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md transition"
                 >
                   {t('completeAndPrescribe')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Emergency Blood Modal */}
-      {showBloodModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 border-2 border-red-500 space-y-4 animate-in zoom-in-95">
-            <div className="flex justify-between items-center border-b border-red-100 pb-3">
-              <div className="flex items-center gap-2 text-red-600 font-bold text-base">
-                <Flame className="w-5 h-5" />
-                <span>Doctor Emergency Blood Broadcast</span>
-              </div>
-              <button onClick={() => setShowBloodModal(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleDispatchEmergencyBlood} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Blood Group Required</label>
-                <select
-                  value={bloodGroupReq}
-                  onChange={(e) => setBloodGroupReq(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-red-700"
-                >
-                  {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(bg => (
-                    <option key={bg} value={bg}>{bg}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Units Required</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={bloodUnitsReq}
-                  onChange={(e) => setBloodUnitsReq(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Clinical Reason</label>
-                <input
-                  type="text"
-                  value={bloodReasonReq}
-                  onChange={(e) => setBloodReasonReq(e.target.value)}
-                  placeholder="e.g. Acute Hemorrhage, Urgent surgery stabilization"
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                />
-              </div>
-
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  className="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-2.5 rounded-xl shadow-lg transition flex items-center justify-center gap-2"
-                >
-                  <Flame className="w-4 h-4" />
-                  <span>Dispatch Real-time Broadcast</span>
                 </button>
               </div>
             </form>

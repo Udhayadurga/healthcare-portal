@@ -5,6 +5,32 @@ const { calculatePriorityScore, reorderDoctorQueue } = require('../services/prio
 const { calculateNoShowRisk } = require('../services/noShowPredictor');
 const { emitQueueUpdate, emitAppointmentUpdate } = require('../services/socketService');
 
+// Time helpers to prevent past booking and enforce only future timings
+const getLocalDateString = (d = new Date()) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+const isSlotInPast = (dateStr, slotTimeStr) => {
+  const now = new Date();
+  const todayStr = getLocalDateString(now);
+  if (dateStr < todayStr) return true;
+  if (dateStr > todayStr) return false;
+
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const match = (slotTimeStr || '').match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return false;
+  let [_, hours, minutes, period] = match;
+  hours = parseInt(hours, 10);
+  minutes = parseInt(minutes, 10);
+  if (period.toUpperCase() === 'PM' && hours < 12) hours += 12;
+  if (period.toUpperCase() === 'AM' && hours === 12) hours = 0;
+  const slotDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+  return slotDate <= now;
+};
+
 // @desc Book an outpatient appointment with priority scoring
 // @route POST /api/appointments
 exports.bookAppointment = async (req, res, next) => {
@@ -25,6 +51,15 @@ exports.bookAppointment = async (req, res, next) => {
     } = req.body;
 
     const patientId = req.user.id;
+
+    // Reject past date or past time slot bookings
+    const todayStr = getLocalDateString();
+    if (appointmentDate < todayStr || isSlotInPast(appointmentDate, slotTime)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot book appointments for past dates or past time slots. Only future timings are available.'
+      });
+    }
 
     // Verify Doctor exists
     const doctor = await User.findOne({ _id: doctorId, role: 'doctor' });
@@ -190,6 +225,19 @@ exports.getDoctorSlots = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Doctor not found' });
     }
 
+    const todayStr = getLocalDateString();
+    if (date < todayStr) {
+      return res.status(200).json({
+        success: true,
+        doctorId,
+        doctorName: doctor.name,
+        date,
+        isPastDate: true,
+        message: 'Cannot view or book slots for past dates. Please choose today or a future date.',
+        slots: []
+      });
+    }
+
     const isOnLeave = doctor.doctorProfile?.availabilityStatus === 'On Leave';
     if (isOnLeave) {
       return res.status(200).json({
@@ -209,6 +257,9 @@ exports.getDoctorSlots = async (req, res, next) => {
       '03:00 PM', '03:30 PM', '04:00 PM'
     ];
 
+    // Filter out past timing so ONLY future timing is visible to users
+    const futureSlots = allSlots.filter(time => !isSlotInPast(date, time));
+
     // Find booked slots for this doctor on this date
     const bookedAppointments = await Appointment.find({
       doctor: doctorId,
@@ -218,7 +269,7 @@ exports.getDoctorSlots = async (req, res, next) => {
 
     const bookedSlotTimes = bookedAppointments.map(b => b.slotTime);
 
-    const slotAvailability = allSlots.map(time => {
+    const slotAvailability = futureSlots.map(time => {
       const isBooked = bookedSlotTimes.includes(time);
       const bookedInfo = isBooked ? bookedAppointments.find(b => b.slotTime === time) : null;
       return {
@@ -254,6 +305,15 @@ exports.rescheduleAppointment = async (req, res, next) => {
     // Verify ownership or doctor/admin privilege
     if (req.user.role === 'patient' && appointment.patient.toString() !== req.user.id) {
       return res.status(403).json({ success: false, message: 'Not authorized to reschedule this appointment' });
+    }
+
+    // Validate future date and time
+    const todayStr = getLocalDateString();
+    if (newDate < todayStr || isSlotInPast(newDate, newSlotTime)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot reschedule an appointment to a past date or past time slot. Only future timings are available.'
+      });
     }
 
     // Check slot availability

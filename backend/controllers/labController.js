@@ -47,6 +47,32 @@ exports.getLabTests = async (req, res, next) => {
   }
 };
 
+// Time helpers to prevent past booking and enforce only future timings
+const getLocalDateString = (d = new Date()) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+const isSlotInPast = (dateStr, slotTimeStr) => {
+  const now = new Date();
+  const todayStr = getLocalDateString(now);
+  if (dateStr < todayStr) return true;
+  if (dateStr > todayStr) return false;
+
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const match = (slotTimeStr || '').match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return false;
+  let [_, hours, minutes, period] = match;
+  hours = parseInt(hours, 10);
+  minutes = parseInt(minutes, 10);
+  if (period.toUpperCase() === 'PM' && hours < 12) hours += 12;
+  if (period.toUpperCase() === 'AM' && hours === 12) hours = 0;
+  const slotDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+  return slotDate <= now;
+};
+
 // @desc Book a lab test slot
 // @route POST /api/lab/book
 exports.bookLabTest = async (req, res, next) => {
@@ -72,6 +98,15 @@ exports.bookLabTest = async (req, res, next) => {
     } = req.body;
 
     const patientId = req.user.id;
+
+    // Reject past date or past time slot bookings
+    const todayStr = getLocalDateString();
+    if (bookingDate < todayStr || isSlotInPast(bookingDate, slotTime)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot book diagnostic lab tests for past dates or past time slots. Only future timings are available.'
+      });
+    }
 
     const test = await LabTest.findById(labTestId);
     if (!test) {

@@ -20,7 +20,7 @@ export const LoginPage = ({ onNavigate, initialRole = 'patient' }) => {
   const { login } = useAuth();
   const { t } = useLanguage();
 
-  const [activeRole, setActiveRole] = useState(initialRole); // 'patient' | 'doctor' | 'donor' | 'admin'
+  const [activeRole, setActiveRole] = useState(initialRole === 'donor' ? 'patient' : initialRole); // 'patient' | 'doctor' | 'admin'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -37,9 +37,6 @@ export const LoginPage = ({ onNavigate, initialRole = 'patient' }) => {
     } else if (r === 'doctor') {
       setEmail('priya.cardio@hospital.com');
       setPassword('Doctor@123');
-    } else if (r === 'donor') {
-      setEmail('anand.donor@gmail.com');
-      setPassword('Donor@123');
     } else {
       setEmail('ramesh@gmail.com');
       setPassword('Patient@123');
@@ -55,7 +52,6 @@ export const LoginPage = ({ onNavigate, initialRole = 'patient' }) => {
       // Navigate based on role
       if (loggedIn.role === 'admin') onNavigate('/admin-dashboard');
       else if (loggedIn.role === 'doctor') onNavigate('/doctor-dashboard');
-      else if (loggedIn.role === 'donor') onNavigate('/donor-dashboard');
       else onNavigate('/patient-dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid credentials. Please check your email and password.');
@@ -75,19 +71,10 @@ export const LoginPage = ({ onNavigate, initialRole = 'patient' }) => {
           icon: Stethoscope,
           regText: 'New Doctor? Register Clinical Profile'
         };
-      case 'donor':
-        return {
-          title: 'Blood Donor Sign In',
-          subtitle: 'Track 90-day eligibility, emergency blood alerts & certificates',
-          badgeColor: 'bg-rose-50 text-rose-700 border-rose-200',
-          btnColor: 'bg-rose-600 hover:bg-rose-500',
-          icon: Heart,
-          regText: 'New Donor? Register as Life Saver'
-        };
       case 'admin':
         return {
           title: 'Hospital Admin Login',
-          subtitle: 'Master control: analytics, blood bank inventory & hospital staff management',
+          subtitle: 'Master control: analytics, diagnostics & hospital staff management',
           badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
           btnColor: 'bg-purple-700 hover:bg-purple-600',
           icon: Shield,
@@ -120,10 +107,10 @@ export const LoginPage = ({ onNavigate, initialRole = 'patient' }) => {
           <p className="text-xs text-slate-500">{theme.subtitle}</p>
         </div>
 
-        {/* 4-Role Selector Tabs */}
+        {/* 3-Role Selector Tabs */}
         <div>
           <label className="block text-xs font-bold text-slate-600 mb-1.5 text-center">Select Login Persona:</label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             {/* Patient */}
             <button
               type="button"
@@ -150,20 +137,6 @@ export const LoginPage = ({ onNavigate, initialRole = 'patient' }) => {
             >
               <Stethoscope className="w-4 h-4" />
               <span>Doctor</span>
-            </button>
-
-            {/* Blood Donor */}
-            <button
-              type="button"
-              onClick={() => handleSelectRole('donor')}
-              className={`p-2.5 rounded-2xl border text-xs font-bold transition flex flex-col items-center gap-1 ${
-                activeRole === 'donor'
-                  ? 'bg-rose-600 text-white border-rose-600 shadow-md'
-                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-              }`}
-            >
-              <Heart className="w-4 h-4" />
-              <span>Blood Donor</span>
             </button>
 
             {/* Admin (Single Master Admin) */}

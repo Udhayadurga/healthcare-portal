@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { PriorityBadge } from '../components/PriorityBadge';
-import { bloodService, authService } from '../services/api';
+import { authService } from '../services/api';
 import {
   CalendarPlus,
   Heart,
@@ -23,7 +23,6 @@ import {
 export const LandingPage = ({ onNavigate }) => {
   const { t } = useLanguage();
   const { user } = useAuth();
-  const [bloodStock, setBloodStock] = useState([]);
   const [doctors, setDoctors] = useState([]);
 
   // Triage simulator state
@@ -35,11 +34,7 @@ export const LandingPage = ({ onNavigate }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [bloodRes, docRes] = await Promise.all([
-          bloodService.getInventory(),
-          authService.getDoctors()
-        ]);
-        setBloodStock(bloodRes.data.inventory || []);
+        const docRes = await authService.getDoctors();
         setDoctors(docRes.data.doctors || []);
       } catch (err) {
         console.error(err);
@@ -80,7 +75,7 @@ export const LandingPage = ({ onNavigate }) => {
           </h1>
 
           <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
-            Revolutionizing outpatient scheduling with real-time clinical urgency sorting, integrated blood bank matching, capacity-managed lab test bookings, and doctor queue management.
+            Revolutionizing outpatient scheduling with real-time clinical urgency sorting, capacity-managed diagnostic lab test bookings, and doctor queue management.
           </p>
 
           <div className="flex flex-wrap items-center gap-3 pt-2">
@@ -102,11 +97,11 @@ export const LandingPage = ({ onNavigate }) => {
             </button>
 
             <button
-              onClick={() => onNavigate('/blood-bank')}
-              className="flex items-center gap-2 bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/60 font-semibold px-5 py-3 rounded-xl transition text-sm"
+              onClick={() => onNavigate('/lab-tests')}
+              className="flex items-center gap-2 bg-emerald-950/60 hover:bg-emerald-900 text-emerald-300 border border-emerald-800/60 font-semibold px-5 py-3 rounded-xl transition text-sm"
             >
-              <Heart className="w-4 h-4 text-rose-400" />
-              <span>{t('bloodDonationPortal')}</span>
+              <FlaskConical className="w-4 h-4 text-emerald-400" />
+              <span>{t('navLabTests')}</span>
             </button>
           </div>
         </div>
@@ -122,8 +117,8 @@ export const LandingPage = ({ onNavigate }) => {
             <div className="text-slate-400">Clinical Urgency Sorting</div>
           </div>
           <div className="space-y-1">
-            <div className="text-rose-400 font-bold text-lg sm:text-xl">8 Groups</div>
-            <div className="text-slate-400">Live Blood Bank Tracking</div>
+            <div className="text-purple-400 font-bold text-lg sm:text-xl">Diagnostics</div>
+            <div className="text-slate-400">Pathology & Radiology</div>
           </div>
           <div className="space-y-1">
             <div className="text-amber-400 font-bold text-lg sm:text-xl">&lt; 15 mins</div>
@@ -296,18 +291,18 @@ export const LandingPage = ({ onNavigate }) => {
         </div>
 
         <div
-          onClick={() => onNavigate('/blood-bank')}
-          className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs hover:shadow-md hover:border-rose-300 transition cursor-pointer group"
+          onClick={() => onNavigate('/queue-tracker')}
+          className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs hover:shadow-md hover:border-sky-300 transition cursor-pointer group"
         >
-          <div className="w-12 h-12 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center mb-4 group-hover:scale-110 transition">
-            <Heart className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center mb-4 group-hover:scale-110 transition">
+            <Clock className="w-6 h-6" />
           </div>
-          <h3 className="font-bold text-slate-900 text-base mb-2">Blood Bank & Donors</h3>
+          <h3 className="font-bold text-slate-900 text-base mb-2">Real-Time Queue Tracker</h3>
           <p className="text-xs text-slate-500 leading-relaxed mb-4">
-            90-day eligibility calculator, real-time inventory tracking for 8 blood types, emergency broadcast dispatches, and certificate records.
+            Live consultation token status, estimated doctor wait times, transparent emergency triage updates, and multi-counter tracking.
           </p>
-          <span className="text-xs font-bold text-rose-600 flex items-center gap-1 group-hover:translate-x-1 transition">
-            Access Blood Portal <ArrowRight className="w-3.5 h-3.5" />
+          <span className="text-xs font-bold text-sky-600 flex items-center gap-1 group-hover:translate-x-1 transition">
+            Open Queue Tracker <ArrowRight className="w-3.5 h-3.5" />
           </span>
         </div>
 
@@ -320,54 +315,11 @@ export const LandingPage = ({ onNavigate }) => {
           </div>
           <h3 className="font-bold text-slate-900 text-base mb-2">Lab & Diagnostic Booking</h3>
           <p className="text-xs text-slate-500 leading-relaxed mb-4">
-            Complete test catalog (CBC, MRI, Lipid, X-Ray), home sample collection toggle, AI symptom test recommender, and instant PDF report downloads.
+            Complete test catalog (CBC, MRI, Lipid, X-Ray), home sample collection toggle, and authenticated digital PDF report downloads.
           </p>
           <span className="text-xs font-bold text-emerald-600 flex items-center gap-1 group-hover:translate-x-1 transition">
             Browse Lab Tests <ArrowRight className="w-3.5 h-3.5" />
           </span>
-        </div>
-      </section>
-
-      {/* Live Blood Inventory Snapshot */}
-      <section className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Droplet className="w-5 h-5 text-rose-600" />
-            <h3 className="font-bold text-slate-900 text-lg">Hospital Blood Inventory Snapshot</h3>
-          </div>
-          <button
-            onClick={() => onNavigate('/blood-bank')}
-            className="text-xs font-bold text-rose-600 hover:underline"
-          >
-            View Full Blood Bank &rarr;
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-          {bloodStock.map((item) => (
-            <div
-              key={item.bloodGroup}
-              className={`p-3 rounded-2xl border text-center ${
-                item.unitsAvailable <= item.criticalThreshold
-                  ? 'bg-rose-50 border-rose-300 text-rose-900'
-                  : 'bg-slate-50 border-slate-200 text-slate-800'
-              }`}
-            >
-              <div className="text-sm font-extrabold">{item.bloodGroup}</div>
-              <div className="text-xl font-black mt-1">{item.unitsAvailable} <span className="text-[10px] font-normal text-slate-500">units</span></div>
-              <div className="mt-1">
-                {item.unitsAvailable <= item.criticalThreshold ? (
-                  <span className="text-[9px] bg-rose-600 text-white font-bold px-1.5 py-0.2 rounded-full uppercase">
-                    Low Stock
-                  </span>
-                ) : (
-                  <span className="text-[9px] text-emerald-700 bg-emerald-100 font-semibold px-1.5 py-0.2 rounded-full">
-                    Available
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
         </div>
       </section>
     </div>

@@ -26,30 +26,19 @@ export const Sidebar = ({ currentPath = '/', onNavigate, isOpen, onClose }) => {
         { path: '/', label: t('navDashboard'), icon: LayoutDashboard },
         { path: '/book-appointment', label: t('navBookAppt'), icon: CalendarPlus },
         { path: '/queue-tracker', label: t('navQueueTracker'), icon: Clock },
-        { path: '/blood-bank', label: t('navBloodBank'), icon: Heart },
         { path: '/lab-tests', label: t('navLabTests'), icon: FlaskConical }
       ];
     }
 
     if (user.role === 'doctor') {
       return [
-        { path: '/doctor-dashboard', label: t('clinicalOverview'), icon: LayoutDashboard },
-        { path: '/blood-bank', label: t('emergencyBloodAlert'), icon: Heart, badge: 'Live' }
+        { path: '/doctor-dashboard', label: t('clinicalOverview'), icon: LayoutDashboard }
       ];
     }
 
     if (user.role === 'admin') {
       return [
-        { path: '/admin-dashboard', label: t('hospitalAnalyticsTab'), icon: LayoutDashboard },
-        { path: '/blood-bank', label: t('bloodInventory'), icon: Heart }
-      ];
-    }
-
-    if (user.role === 'donor') {
-      return [
-        { path: '/donor-dashboard', label: t('navDashboard'), icon: LayoutDashboard },
-        { path: '/blood-bank', label: t('emergencyBloodAlert'), icon: Heart, badge: 'Alerts' },
-        { path: '/donor-dashboard?tab=certificate', label: t('downloadCertificate'), icon: Award }
+        { path: '/admin-dashboard', label: t('hospitalAnalyticsTab'), icon: LayoutDashboard }
       ];
     }
 
@@ -58,7 +47,6 @@ export const Sidebar = ({ currentPath = '/', onNavigate, isOpen, onClose }) => {
       { path: '/patient-dashboard', label: t('navDashboard'), icon: LayoutDashboard },
       { path: '/book-appointment', label: t('navBookAppt'), icon: CalendarPlus },
       { path: '/queue-tracker', label: t('navQueueTracker'), icon: Clock },
-      { path: '/blood-bank', label: t('navBloodBank'), icon: Heart },
       { path: '/lab-tests', label: t('navLabTests'), icon: FlaskConical }
     ];
   };

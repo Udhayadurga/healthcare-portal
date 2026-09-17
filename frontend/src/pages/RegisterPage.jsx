@@ -8,7 +8,6 @@ import {
   User,
   Phone,
   MapPin,
-  Heart,
   Activity,
   ArrowRight,
   AlertCircle,
@@ -30,7 +29,7 @@ export const RegisterPage = ({ onNavigate }) => {
   const [role, setRole] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const paramRole = params.get('role');
-    if (paramRole === 'doctor' || paramRole === 'donor') return paramRole;
+    if (paramRole === 'doctor') return paramRole;
     return 'patient';
   });
 
@@ -51,12 +50,7 @@ export const RegisterPage = ({ onNavigate }) => {
     specialization: 'Senior Consultant',
     experienceYears: 10,
     consultationFee: 700,
-    roomNumber: 'OPD-101',
-    // Blood Donor specific
-    weightKg: 68,
-    lastDonationDate: '',
-    isFirstTimeDonor: true,
-    availableForEmergency: true
+    roomNumber: 'OPD-101'
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -109,18 +103,10 @@ export const RegisterPage = ({ onNavigate }) => {
           availableDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
           slotTimes: ['09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM']
         };
-      } else if (role === 'donor') {
-        payload.donorProfile = {
-          weightKg: Number(formData.weightKg) || 65,
-          lastDonationDate: formData.isFirstTimeDonor ? null : (formData.lastDonationDate || null),
-          totalDonations: formData.isFirstTimeDonor ? 0 : 1,
-          isAvailableForEmergency: formData.availableForEmergency
-        };
       }
 
       const newUser = await register(payload);
       if (newUser.role === 'doctor') onNavigate('/doctor-dashboard');
-      else if (newUser.role === 'donor') onNavigate('/donor-dashboard');
       else onNavigate('/patient-dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed. Please verify your inputs.');
@@ -138,7 +124,7 @@ export const RegisterPage = ({ onNavigate }) => {
             🏥 MEDCARE HOSPITAL
           </div>
           <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Create Healthcare Account</h2>
-          <p className="text-xs text-slate-500">Register as a Patient, Doctor, or Blood Donor</p>
+          <p className="text-xs text-slate-500">Register as a Patient for Outpatient Care & Health Records</p>
         </div>
 
         {/* Tab Switcher: Sign In vs Sign Up */}
@@ -166,38 +152,20 @@ export const RegisterPage = ({ onNavigate }) => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Public Registration Roles Selection */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-2">Select Registration Category:</label>
-            <div className="grid grid-cols-2 gap-3">
-              {/* Patient */}
-              <button
-                type="button"
-                onClick={() => setRole('patient')}
-                className={`py-3 px-3 rounded-2xl border text-xs font-bold transition flex flex-col items-center gap-1.5 ${
-                  role === 'patient'
-                    ? 'bg-sky-600 text-white border-sky-600 shadow-md shadow-sky-600/30'
-                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                }`}
-              >
+          {/* Public Registration Category Card */}
+          <div className="bg-sky-50/70 border border-sky-200 rounded-2xl p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-sky-600 text-white flex items-center justify-center font-bold shadow-xs">
                 <User className="w-5 h-5" />
-                <span>Patient Account</span>
-              </button>
-
-              {/* Blood Donor */}
-              <button
-                type="button"
-                onClick={() => setRole('donor')}
-                className={`py-3 px-3 rounded-2xl border text-xs font-bold transition flex flex-col items-center gap-1.5 ${
-                  role === 'donor'
-                    ? 'bg-rose-600 text-white border-rose-600 shadow-md shadow-rose-600/30'
-                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                }`}
-              >
-                <Heart className="w-5 h-5" />
-                <span>Blood Donor Account</span>
-              </button>
+              </div>
+              <div>
+                <h4 className="font-bold text-xs text-sky-900">Patient Electronic Health Account</h4>
+                <p className="text-[11px] text-sky-700">Digital OPD appointments, diagnostic lab test bookings & live queue status</p>
+              </div>
             </div>
+            <span className="text-[10px] font-bold bg-sky-100 text-sky-800 px-2.5 py-1 rounded-full border border-sky-300 uppercase tracking-wide">
+              Active
+            </span>
           </div>
 
           {/* Primary Profile Details */}
@@ -393,72 +361,7 @@ export const RegisterPage = ({ onNavigate }) => {
             </div>
           )}
 
-          {/* 2. BLOOD DONOR SPECIFIC */}
-          {role === 'donor' && (
-            <div className="bg-rose-50/70 border border-rose-200 rounded-2xl p-4 space-y-3 text-xs animate-in fade-in duration-200">
-              <div className="font-bold text-rose-900 flex items-center gap-1.5">
-                <Heart className="w-4 h-4 text-rose-600" />
-                <span>Blood Donor Eligibility & History</span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Body Weight (kg)</label>
-                  <input
-                    type="number"
-                    min={45}
-                    max={150}
-                    value={formData.weightKg}
-                    onChange={(e) => setFormData({ ...formData, weightKg: e.target.value })}
-                    className="w-full p-2 bg-white border border-rose-200 rounded-xl"
-                  />
-                  <span className="text-[10px] text-slate-500">Min 50kg recommended for donation</span>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block font-bold text-slate-700 mb-1">Donation History</label>
-                  <div className="flex items-center gap-2 pt-1">
-                    <input
-                      type="checkbox"
-                      id="firstTime"
-                      checked={formData.isFirstTimeDonor}
-                      onChange={(e) => setFormData({ ...formData, isFirstTimeDonor: e.target.checked })}
-                      className="w-4 h-4 rounded text-rose-600"
-                    />
-                    <label htmlFor="firstTime" className="text-slate-700 cursor-pointer font-semibold">First Time Donor</label>
-                  </div>
-                </div>
-              </div>
-
-              {!formData.isFirstTimeDonor && (
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Last Blood Donation Date</label>
-                  <input
-                    type="date"
-                    value={formData.lastDonationDate}
-                    onChange={(e) => setFormData({ ...formData, lastDonationDate: e.target.value })}
-                    className="w-full p-2 bg-white border border-rose-200 rounded-xl"
-                  />
-                  <span className="text-[10px] text-slate-500">90-day eligibility engine will calculate donation gap</span>
-                </div>
-              )}
-
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="emergencyOpt"
-                  checked={formData.availableForEmergency}
-                  onChange={(e) => setFormData({ ...formData, availableForEmergency: e.target.checked })}
-                  className="w-4 h-4 rounded text-rose-600"
-                />
-                <label htmlFor="emergencyOpt" className="text-slate-700 cursor-pointer">
-                  Opt-in for Real-Time Emergency Hospital Blood Broadcasts
-                </label>
-              </div>
-            </div>
-          )}
-
-          {/* 3. PATIENT SPECIFIC (Chronic conditions) */}
+          {/* PATIENT SPECIFIC (Chronic conditions) */}
           {role === 'patient' && (
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2 animate-in fade-in duration-200">
               <div className="flex items-center justify-between">
@@ -492,8 +395,6 @@ export const RegisterPage = ({ onNavigate }) => {
             className={`w-full text-white font-bold py-3 rounded-xl shadow-md transition text-xs flex items-center justify-center gap-2 ${
               role === 'doctor'
                 ? 'bg-blue-600 hover:bg-blue-500'
-                : role === 'donor'
-                ? 'bg-rose-600 hover:bg-rose-500'
                 : 'bg-sky-600 hover:bg-sky-500'
             }`}
           >

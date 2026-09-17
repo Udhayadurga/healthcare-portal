@@ -18,6 +18,33 @@ import {
   Sparkles
 } from 'lucide-react';
 
+// Time helpers to ensure no past timing booking and only future timings are visible
+const getTodayDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const isSlotInPast = (dateStr, slotTimeStr) => {
+  const now = new Date();
+  const todayStr = getTodayDateString();
+  if (dateStr < todayStr) return true;
+  if (dateStr > todayStr) return false;
+
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const match = (slotTimeStr || '').match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return false;
+  let [_, hours, minutes, period] = match;
+  hours = parseInt(hours, 10);
+  minutes = parseInt(minutes, 10);
+  if (period.toUpperCase() === 'PM' && hours < 12) hours += 12;
+  if (period.toUpperCase() === 'AM' && hours === 12) hours = 0;
+  const slotDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+  return slotDate <= now;
+};
+
 export const BookAppointmentPage = ({ onNavigate }) => {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -25,13 +52,29 @@ export const BookAppointmentPage = ({ onNavigate }) => {
   const [doctors, setDoctors] = useState([]);
   const [selectedDepartment, setSelectedDepartment] = useState('Cardiology');
   const [selectedDoctor, setSelectedDoctor] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const d = new Date();
-    return d.toISOString().split('T')[0];
-  });
+  const [selectedDate, setSelectedDate] = useState(() => getTodayDateString());
   const [availableSlots, setAvailableSlots] = useState([]);
   const [selectedSlot, setSelectedSlot] = useState('');
   const [loadingSlots, setLoadingSlots] = useState(false);
+
+  const todayStr = getTodayDateString();
+  const isPastDate = selectedDate < todayStr;
+  const isToday = selectedDate === todayStr;
+
+  // Filter available slots so that ONLY future timings are visible to users
+  const visibleSlots = availableSlots.filter((slot) => {
+    if (isPastDate) return false;
+    if (isToday && isSlotInPast(selectedDate, slot.slotTime)) return false;
+    return true;
+  });
+
+  // Automatically ensure selectedSlot points to an available future slot
+  useEffect(() => {
+    if (!visibleSlots.some((s) => s.slotTime === selectedSlot && s.isAvailable)) {
+      const firstAvail = visibleSlots.find((s) => s.isAvailable);
+      setSelectedSlot(firstAvail ? firstAvail.slotTime : '');
+    }
+  }, [visibleSlots, selectedSlot]);
 
   // Clinical triage fields
   const [symptoms, setSymptoms] = useState('');
@@ -73,9 +116,6 @@ export const BookAppointmentPage = ({ onNavigate }) => {
         setLoadingSlots(true);
         const res = await appointmentService.getSlots(selectedDoctor._id, selectedDate);
         setAvailableSlots(res.data.slots || []);
-        // Select first available slot
-        const firstAvail = res.data.slots?.find(s => s.isAvailable);
-        setSelectedSlot(firstAvail ? firstAvail.slotTime : '');
       } catch (err) {
         console.error(err);
       } finally {
@@ -111,6 +151,11 @@ export const BookAppointmentPage = ({ onNavigate }) => {
     }
     if (!selectedSlot) {
       setError('Please select an available time slot');
+      return;
+    }
+
+    if (selectedDate < todayStr || isSlotInPast(selectedDate, selectedSlot)) {
+      setError('Cannot book appointments for past dates or past time slots. Please select a future time.');
       return;
     }
 
@@ -239,25 +284,41 @@ export const BookAppointmentPage = ({ onNavigate }) => {
           {/* Date & Slot Picker */}
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
             <div className="flex justify-between items-center">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                3. Select Consultation Date & Slot
-              </label>
+              <div>
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                  3. Select Consultation Date & Slot
+                </label>
+                <span className="text-[10px] text-slate-400">Only upcoming future time slots are bookable</span>
+              </div>
               <input
                 type="date"
                 value={selectedDate}
-                min={new Date().toISOString().split('T')[0]}
+                min={todayStr}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none"
+                className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-sky-500"
               />
             </div>
 
             {loadingSlots ? (
               <div className="text-center p-6 text-xs text-slate-400">Checking slot availability...</div>
-            ) : availableSlots.length === 0 ? (
-              <div className="text-center p-6 text-xs text-slate-400">No slots configured for this date.</div>
+            ) : isPastDate ? (
+              <div className="text-center p-6 text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-2xl">
+                Cannot book appointments on past dates. Please select today or a future date.
+              </div>
+            ) : visibleSlots.length === 0 ? (
+              <div className="text-center p-6 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-2xl space-y-1">
+                <div className="font-bold">
+                  {isToday ? "All consultation slots for today have already passed" : "No slots configured for this date"}
+                </div>
+                <p className="text-[11px] text-amber-700">
+                  {isToday
+                    ? "Past timings are disabled to ensure timely clinical care. Please choose tomorrow or another future date from the calendar above."
+                    : "Please choose another date or select another specialist doctor."}
+                </p>
+              </div>
             ) : (
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
-                {availableSlots.map((slot) => (
+                {visibleSlots.map((slot) => (
                   <button
                     key={slot.slotTime}
                     type="button"
@@ -389,7 +450,7 @@ export const BookAppointmentPage = ({ onNavigate }) => {
 
             <button
               type="submit"
-              disabled={submitting || !selectedSlot}
+              disabled={submitting || !selectedSlot || visibleSlots.length === 0 || isPastDate}
               className="w-full bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white font-bold py-3 rounded-xl text-xs shadow-lg transition flex items-center justify-center gap-2"
             >
               <span>{submitting ? 'Confirming Slot...' : 'Confirm Appointment'}</span>
