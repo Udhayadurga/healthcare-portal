@@ -31,7 +31,8 @@ import {
   X,
   ShieldAlert,
   Scale,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Accessibility
 } from 'lucide-react';
 
 export const PatientDashboard = ({ onNavigate }) => {
@@ -287,6 +288,43 @@ export const PatientDashboard = ({ onNavigate }) => {
                   </div>
                 </div>
               </div>
+
+              {/* Special Facility Assistance Alert (Wheelchair / Observation Bed) */}
+              {Boolean(activeTodayAppt.specialAssistance?.wheelchairRequired || activeTodayAppt.specialAssistance?.observationBedRequired) && (
+                <div className="bg-indigo-50/90 border border-indigo-200 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-xs">
+                      <Accessibility className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-indigo-950 text-xs sm:text-sm">
+                        Facility Assistance Requested:
+                        {activeTodayAppt.specialAssistance.wheelchairRequired && ' Wheelchair at Entrance'}
+                        {activeTodayAppt.specialAssistance.wheelchairRequired && activeTodayAppt.specialAssistance.observationBedRequired && ' • '}
+                        {activeTodayAppt.specialAssistance.observationBedRequired && ' Outpatient Observation Bed'}
+                      </h4>
+                      <p className="text-[11px] text-indigo-700 mt-0.5">
+                        Hospital Desk Status: <strong className="uppercase">{activeTodayAppt.specialAssistance.status || 'Requested'}</strong>
+                        {activeTodayAppt.specialAssistance.assignedBedNumber && (
+                          <span> • Bed: <strong className="text-slate-900">{activeTodayAppt.specialAssistance.assignedBedNumber}</strong></span>
+                        )}
+                        {activeTodayAppt.specialAssistance.assignedStaffName && (
+                          <span> • Porter/Staff: <strong className="text-slate-900">{activeTodayAppt.specialAssistance.assignedStaffName}</strong></span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <span className={`text-[10px] font-bold px-3 py-1 rounded-full ${
+                    activeTodayAppt.specialAssistance.status === 'Assigned' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' :
+                    activeTodayAppt.specialAssistance.status === 'Completed' ? 'bg-slate-200 text-slate-700' :
+                    'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
+                  }`}>
+                    {activeTodayAppt.specialAssistance.status === 'Assigned' ? 'Porter / Bed Allocated' :
+                     activeTodayAppt.specialAssistance.status === 'Completed' ? 'Service Completed' :
+                     'Awaiting Facility Dispatch'}
+                  </span>
+                </div>
+              )}
             </div>
           ) : (
             <div className="bg-white rounded-3xl p-6 text-center border border-slate-200 shadow-xs space-y-3">
@@ -343,6 +381,37 @@ export const PatientDashboard = ({ onNavigate }) => {
                             )}
                           </div>
                           <div className="text-[11px] text-slate-500">{appt.department}</div>
+
+                          {/* Facility & Mobility Assistance Badge & Assigned Info */}
+                          {Boolean(appt.specialAssistance?.wheelchairRequired || appt.specialAssistance?.observationBedRequired) && (
+                            <div className="mt-1.5 space-y-1">
+                              <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                                appt.specialAssistance.status === 'Assigned'
+                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                  : appt.specialAssistance.status === 'Completed'
+                                  ? 'bg-slate-100 text-slate-700 border-slate-300'
+                                  : 'bg-amber-50 text-amber-800 border-amber-300'
+                              }`}>
+                                <Accessibility className="w-3 h-3 text-indigo-600" />
+                                <span>
+                                  {appt.specialAssistance.wheelchairRequired && 'Wheelchair'}
+                                  {appt.specialAssistance.wheelchairRequired && appt.specialAssistance.observationBedRequired && ' + '}
+                                  {appt.specialAssistance.observationBedRequired && 'Daycare Bed'}
+                                  : <span className="uppercase ml-0.5">{appt.specialAssistance.status || 'Requested'}</span>
+                                </span>
+                              </span>
+                              {appt.specialAssistance.status === 'Assigned' && (
+                                <div className="text-[10px] text-slate-600 bg-white border border-slate-200 rounded-md p-1.5 flex flex-wrap gap-x-3 gap-y-0.5 shadow-2xs">
+                                  {appt.specialAssistance.assignedBedNumber && (
+                                    <span>Bed: <strong className="text-slate-900">{appt.specialAssistance.assignedBedNumber}</strong></span>
+                                  )}
+                                  {appt.specialAssistance.assignedStaffName && (
+                                    <span>Staff/Porter: <strong className="text-slate-900">{appt.specialAssistance.assignedStaffName}</strong></span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </td>
                         <td className="p-3">
                           <div className="font-semibold text-slate-800">{appt.appointmentDate}</div>

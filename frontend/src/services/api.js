@@ -79,7 +79,8 @@ export const doctorService = {
   updateAvailability: (data) => api.put('/doctor/availability', typeof data === 'string' ? { availabilityStatus: data } : data),
   getPatientHistory: (patientId) => api.get(`/doctor/patient-history/${patientId}`),
   createReferral: (data) => api.post('/doctor/referral', data),
-  updatePatientAlerts: (patientId, data) => api.put(`/doctor/patient-alerts/${patientId}`, data)
+  updatePatientAlerts: (patientId, data) => api.put(`/doctor/patient-alerts/${patientId}`, data),
+  updateScheduleSettings: (data) => api.put('/doctor/schedule-settings', data)
 };
 
 // Admin Services
@@ -88,7 +89,9 @@ export const adminService = {
   getUsers: (role) => api.get('/admin/users', { params: { role } }),
   createDoctor: (data) => api.post('/admin/doctors', data),
   updateDoctor: (id, data) => api.put(`/admin/doctors/${id}`, data),
-  deleteDoctor: (id) => api.delete(`/admin/doctors/${id}`)
+  deleteDoctor: (id) => api.delete(`/admin/doctors/${id}`),
+  getAssistanceRequests: (params) => api.get('/admin/assistance', { params }),
+  updateAssistance: (id, data) => api.put(`/admin/assistance/${id}`, data)
 };
 
 // Feedback Services

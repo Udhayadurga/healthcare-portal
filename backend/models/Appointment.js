@@ -91,6 +91,20 @@ const appointmentSchema = new mongoose.Schema({
     enum: ['Scheduled', 'Attended', 'Failed to Attend', 'Cancelled'],
     default: 'Scheduled'
   },
+  // Outpatient Bed & Wheelchair Accessibility Assistance
+  specialAssistance: {
+    wheelchairRequired: { type: Boolean, default: false },
+    observationBedRequired: { type: Boolean, default: false },
+    notes: { type: String, default: '' },
+    status: {
+      type: String,
+      enum: ['Not Required', 'Requested', 'Assigned', 'Completed', 'Unavailable'],
+      default: 'Not Required'
+    },
+    assignedBedNumber: { type: String, default: '' },
+    assignedStaffName: { type: String, default: '' },
+    updatedAt: { type: Date }
+  },
   clinicalNotes: {
     type: String,
     default: ''

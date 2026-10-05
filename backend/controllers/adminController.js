@@ -17,6 +17,12 @@ exports.getAnalyticsSummary = async (req, res, next) => {
     const totalPatients = await User.countDocuments({ role: 'patient' });
     const totalDoctors = await User.countDocuments({ role: 'doctor' });
     const totalLabBookings = await LabBooking.countDocuments();
+    const totalAssistanceRequests = await Appointment.countDocuments({
+      $or: [
+        { 'specialAssistance.wheelchairRequired': true },
+        { 'specialAssistance.observationBedRequired': true }
+      ]
+    });
 
     // Department Load Distribution
     const departmentLoad = await Appointment.aggregate([
@@ -63,7 +69,8 @@ exports.getAnalyticsSummary = async (req, res, next) => {
         highPriorityAppointments,
         totalPatients,
         totalDoctors,
-        totalLabBookings
+        totalLabBookings,
+        totalAssistanceRequests
       },
       charts: {
         departmentLoad,
@@ -231,6 +238,86 @@ exports.deleteDoctor = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: `Doctor ${doctor.name} removed successfully`
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc Get all OPD Bed & Wheelchair assistance requests
+// @route GET /api/admin/assistance
+exports.getAssistanceRequests = async (req, res, next) => {
+  try {
+    const { status, date } = req.query;
+    let query = {
+      $or: [
+        { 'specialAssistance.wheelchairRequired': true },
+        { 'specialAssistance.observationBedRequired': true }
+      ]
+    };
+
+    if (status && status !== 'All') {
+      query['specialAssistance.status'] = status;
+    }
+    if (date) {
+      query.appointmentDate = date;
+    }
+
+    const requests = await Appointment.find(query)
+      .populate('patient', 'name phone age gender')
+      .populate('doctor', 'name doctorProfile.department')
+      .sort({ appointmentDate: -1, createdAt: -1 });
+
+    const totalWheelchair = requests.filter(r => r.specialAssistance?.wheelchairRequired).length;
+    const totalObservationBeds = requests.filter(r => r.specialAssistance?.observationBedRequired).length;
+    const pendingCount = requests.filter(r => r.specialAssistance?.status === 'Requested').length;
+    const assignedCount = requests.filter(r => r.specialAssistance?.status === 'Assigned').length;
+
+    res.status(200).json({
+      success: true,
+      metrics: {
+        totalRequests: requests.length,
+        totalWheelchair,
+        totalObservationBeds,
+        pendingCount,
+        assignedCount
+      },
+      requests
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc Update Bed / Wheelchair Assistance Status and Staff/Bed assignment
+// @route PUT /api/admin/assistance/:id
+exports.updateAssistanceStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status, assignedBedNumber, assignedStaffName, notes } = req.body;
+
+    const appointment = await Appointment.findById(id);
+    if (!appointment) {
+      return res.status(404).json({ success: false, message: 'Appointment not found' });
+    }
+
+    if (!appointment.specialAssistance) {
+      appointment.specialAssistance = {};
+    }
+
+    if (status) appointment.specialAssistance.status = status;
+    if (assignedBedNumber !== undefined) appointment.specialAssistance.assignedBedNumber = assignedBedNumber;
+    if (assignedStaffName !== undefined) appointment.specialAssistance.assignedStaffName = assignedStaffName;
+    if (notes !== undefined) appointment.specialAssistance.notes = notes;
+    appointment.specialAssistance.updatedAt = new Date();
+
+    await appointment.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Assistance request updated successfully',
+      specialAssistance: appointment.specialAssistance,
+      appointment
     });
   } catch (error) {
     next(error);

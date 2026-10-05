@@ -5,7 +5,8 @@ const {
   updateAvailability,
   getPatientHistory,
   createCrossDepartmentReferral,
-  updatePatientAlerts
+  updatePatientAlerts,
+  updateScheduleSettings
 } = require('../controllers/doctorController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -14,5 +15,6 @@ router.put('/availability', protect, authorize('doctor'), updateAvailability);
 router.get('/patient-history/:patientId', protect, authorize('doctor', 'admin'), getPatientHistory);
 router.post('/referral', protect, authorize('doctor'), createCrossDepartmentReferral);
 router.put('/patient-alerts/:patientId', protect, authorize('doctor', 'admin'), updatePatientAlerts);
+router.put('/schedule-settings', protect, authorize('doctor'), updateScheduleSettings);
 
 module.exports = router;

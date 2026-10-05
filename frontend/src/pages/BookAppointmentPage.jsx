@@ -15,7 +15,8 @@ import {
   Calendar,
   DollarSign,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Accessibility
 } from 'lucide-react';
 
 // Time helpers to ensure no past timing booking and only future timings are visible
@@ -83,6 +84,11 @@ export const BookAppointmentPage = ({ onNavigate }) => {
   const [hasChronic, setHasChronic] = useState(user?.hasChronicCondition || false);
   const [isEmergency, setIsEmergency] = useState(false);
   const [simulatedPriority, setSimulatedPriority] = useState({ priorityScore: 16, priorityLevel: 'Moderate' });
+
+  // Special Facility & Accessibility Assistance
+  const [wheelchairRequired, setWheelchairRequired] = useState(false);
+  const [observationBedRequired, setObservationBedRequired] = useState(false);
+  const [specialAssistanceNotes, setSpecialAssistanceNotes] = useState('');
 
   // Submission state
   const [submitting, setSubmitting] = useState(false);
@@ -173,7 +179,12 @@ export const BookAppointmentPage = ({ onNavigate }) => {
         isEmergency,
         patientAge: Number(patientAge),
         patientName: user?.name,
-        patientPhone: user?.phone
+        patientPhone: user?.phone,
+        specialAssistance: {
+          wheelchairRequired,
+          observationBedRequired,
+          notes: specialAssistanceNotes
+        }
       };
 
       const res = await appointmentService.book(payload);
@@ -324,11 +335,14 @@ export const BookAppointmentPage = ({ onNavigate }) => {
                     type="button"
                     disabled={!slot.isAvailable}
                     onClick={() => setSelectedSlot(slot.slotTime)}
+                    title={slot.isBreak ? `Doctor Break: ${slot.breakReason || 'Break'}` : ''}
                     className={`py-2 px-3 rounded-xl text-xs font-semibold border transition text-center ${
                       selectedSlot === slot.slotTime
                         ? 'bg-sky-600 text-white border-sky-600 shadow-sm font-bold'
                         : slot.isAvailable
                         ? 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-sky-50 hover:border-sky-300'
+                        : slot.isBreak
+                        ? 'bg-amber-50/80 border-amber-200 text-amber-800 cursor-not-allowed'
                         : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60'
                     }`}
                   >
@@ -336,6 +350,8 @@ export const BookAppointmentPage = ({ onNavigate }) => {
                     <div className="text-[9px] mt-0.5">
                       {slot.isAvailable ? (
                         <span className="text-emerald-600 font-bold">Open</span>
+                      ) : slot.isBreak ? (
+                        <span className="text-amber-700 font-bold">Break</span>
                       ) : (
                         <span className="text-red-500 font-medium">Booked</span>
                       )}
@@ -440,6 +456,60 @@ export const BookAppointmentPage = ({ onNavigate }) => {
               />
             </div>
 
+            {/* Accessibility & Special Facility Assistance */}
+            <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <Accessibility className="w-4 h-4 text-sky-600" /> Facility & Assistance Request
+                </span>
+                <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-semibold border border-emerald-200">Complimentary</span>
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-slate-200 cursor-pointer hover:bg-sky-50/50 transition">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-base">🦽</span>
+                    <div>
+                      <span className="text-xs font-bold text-slate-700 block">Wheelchair Assistance</span>
+                      <span className="text-[10px] text-slate-400">Hospital porter stationed at entrance</span>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={wheelchairRequired}
+                    onChange={(e) => setWheelchairRequired(e.target.checked)}
+                    className="w-4 h-4 rounded text-sky-600 cursor-pointer"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-slate-200 cursor-pointer hover:bg-sky-50/50 transition">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-base">🛏️</span>
+                    <div>
+                      <span className="text-xs font-bold text-slate-700 block">OPD Observation / Daycare Bed</span>
+                      <span className="text-[10px] text-slate-400">Resting bed for senior or frail patients</span>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={observationBedRequired}
+                    onChange={(e) => setObservationBedRequired(e.target.checked)}
+                    className="w-4 h-4 rounded text-sky-600 cursor-pointer"
+                  />
+                </label>
+
+                {(wheelchairRequired || observationBedRequired) && (
+                  <input
+                    type="text"
+                    value={specialAssistanceNotes}
+                    onChange={(e) => setSpecialAssistanceNotes(e.target.value)}
+                    placeholder="Specific notes (e.g. Entrance Gate 1, elderly senior)"
+                    className="w-full text-xs p-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-1 focus:ring-sky-500 placeholder:text-slate-400"
+                  />
+                )}
+              </div>
+            </div>
+
             {/* Triage Calculation Preview Box */}
             <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-1 text-slate-600 font-mono text-[11px]">
               <div>Formula: (Sev*5) + (Age*2) + (Chr*3)</div>
@@ -496,6 +566,23 @@ export const BookAppointmentPage = ({ onNavigate }) => {
                 <span className="text-slate-500">Estimated Wait:</span>
                 <strong className="text-emerald-700">~{bookingSuccess.estimatedWaitMinutes || 0} mins</strong>
               </div>
+              {(bookingSuccess.specialAssistance?.wheelchairRequired || bookingSuccess.specialAssistance?.observationBedRequired) && (
+                <div className="pt-2 border-t border-slate-200 text-left">
+                  <span className="text-[11px] font-bold text-sky-800 block">Special Facility Assistance:</span>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {bookingSuccess.specialAssistance.wheelchairRequired && (
+                      <span className="text-[10px] bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full font-semibold">
+                        🦽 Wheelchair at Entrance
+                      </span>
+                    )}
+                    {bookingSuccess.specialAssistance.observationBedRequired && (
+                      <span className="text-[10px] bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full font-semibold">
+                        🛏️ Daycare / Observation Bed
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex gap-2">

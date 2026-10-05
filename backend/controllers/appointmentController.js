@@ -87,7 +87,8 @@ exports.bookAppointment = async (req, res, next) => {
       patientAge,
       patientName,
       patientGender,
-      patientPhone
+      patientPhone,
+      specialAssistance
     } = req.body;
 
     const patientId = req.user.id;
@@ -111,6 +112,15 @@ exports.bookAppointment = async (req, res, next) => {
       return res.status(400).json({
         success: false,
         message: `Dr. ${doctor.name} is currently On Leave and not accepting appointments. Please choose another doctor or check back later.`
+      });
+    }
+
+    // Check if slot falls on doctor's scheduled break
+    const doctorBreaks = doctor.doctorProfile?.breakTimes || [];
+    if (doctorBreaks.includes(slotTime)) {
+      return res.status(400).json({
+        success: false,
+        message: `Dr. ${doctor.name} is on scheduled break (${doctor.doctorProfile?.breakReason || 'Lunch & Inpatient Ward Rounds'}) at ${slotTime}. Please select another time.`
       });
     }
 
@@ -152,6 +162,19 @@ exports.bookAppointment = async (req, res, next) => {
       daysInAdvance: 2
     });
 
+    // Process Special Assistance Request (Bed / Wheelchair)
+    const isWheelchair = Boolean(specialAssistance?.wheelchairRequired);
+    const isObsBed = Boolean(specialAssistance?.observationBedRequired);
+    const cleanAssistance = {
+      wheelchairRequired: isWheelchair,
+      observationBedRequired: isObsBed,
+      notes: specialAssistance?.notes || '',
+      status: (isWheelchair || isObsBed) ? 'Requested' : 'Not Required',
+      assignedBedNumber: '',
+      assignedStaffName: '',
+      updatedAt: (isWheelchair || isObsBed) ? new Date() : null
+    };
+
     // 3. Create Appointment
     const appointment = await Appointment.create({
       patient: patientId,
@@ -172,7 +195,8 @@ exports.bookAppointment = async (req, res, next) => {
       priorityScore,
       priorityLevel,
       noShowRiskScore,
-      status: 'Confirmed'
+      status: 'Confirmed',
+      specialAssistance: cleanAssistance
     });
 
     // 4. Re-order doctor queue dynamically based on priority score
@@ -302,6 +326,8 @@ exports.getDoctorSlots = async (req, res, next) => {
       '11:00 AM', '11:30 AM', '02:00 PM', '02:30 PM',
       '03:00 PM', '03:30 PM', '04:00 PM'
     ];
+    const breakTimes = doctor.doctorProfile?.breakTimes || [];
+    const breakReason = doctor.doctorProfile?.breakReason || 'Lunch & Inpatient Ward Rounds';
 
     // Filter out past timing so ONLY future timing is visible to users
     const futureSlots = allSlots.filter(time => !isSlotInPast(date, time));
@@ -317,10 +343,13 @@ exports.getDoctorSlots = async (req, res, next) => {
 
     const slotAvailability = futureSlots.map(time => {
       const isBooked = bookedSlotTimes.includes(time);
+      const isBreak = breakTimes.includes(time);
       const bookedInfo = isBooked ? bookedAppointments.find(b => b.slotTime === time) : null;
       return {
         slotTime: time,
-        isAvailable: !isBooked,
+        isAvailable: !isBooked && !isBreak,
+        isBreak,
+        breakReason: isBreak ? breakReason : null,
         bookedPriority: bookedInfo ? bookedInfo.priorityLevel : null
       };
     });
@@ -330,6 +359,9 @@ exports.getDoctorSlots = async (req, res, next) => {
       doctorId,
       doctorName: doctor.name,
       date,
+      breakTimes,
+      breakReason,
+      slotDurationMinutes: doctor.doctorProfile?.slotDurationMinutes || 30,
       slots: slotAvailability
     });
   } catch (error) {

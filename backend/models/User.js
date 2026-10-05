@@ -110,6 +110,18 @@ const userSchema = new mongoose.Schema({
     slotTimes: {
       type: [String],
       default: ['09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM']
+    },
+    breakTimes: {
+      type: [String],
+      default: ['01:00 PM', '01:30 PM']
+    },
+    breakReason: {
+      type: String,
+      default: 'Lunch & Inpatient Ward Rounds'
+    },
+    slotDurationMinutes: {
+      type: Number,
+      default: 30
     }
   },
   // Donor specific fields

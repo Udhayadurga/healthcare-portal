@@ -322,3 +322,42 @@ exports.updatePatientAlerts = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc Update Doctor Consultation Schedule & Break Times
+// @route PUT /api/doctor/schedule-settings
+exports.updateScheduleSettings = async (req, res, next) => {
+  try {
+    const doctorId = req.user.id;
+    const { slotTimes, breakTimes, breakReason, slotDurationMinutes } = req.body;
+
+    const doctor = await User.findById(doctorId);
+    if (!doctor || doctor.role !== 'doctor') {
+      return res.status(404).json({ success: false, message: 'Doctor not found' });
+    }
+
+    if (!doctor.doctorProfile) doctor.doctorProfile = {};
+
+    if (slotTimes && Array.isArray(slotTimes) && slotTimes.length > 0) {
+      doctor.doctorProfile.slotTimes = slotTimes;
+    }
+    if (breakTimes !== undefined) {
+      doctor.doctorProfile.breakTimes = Array.isArray(breakTimes) ? breakTimes : [];
+    }
+    if (breakReason !== undefined) {
+      doctor.doctorProfile.breakReason = breakReason || 'Lunch & Inpatient Ward Rounds';
+    }
+    if (slotDurationMinutes !== undefined) {
+      doctor.doctorProfile.slotDurationMinutes = Number(slotDurationMinutes) || 30;
+    }
+
+    await doctor.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'OPD consultation schedule & break timings updated successfully.',
+      doctorProfile: doctor.doctorProfile
+    });
+  } catch (error) {
+    next(error);
+  }
+};
