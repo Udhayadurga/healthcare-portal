@@ -1,7 +1,5 @@
 const Appointment = require('../models/Appointment');
 const User = require('../models/User');
-const BloodInventory = require('../models/BloodInventory');
-const BloodRequest = require('../models/BloodRequest');
 const LabBooking = require('../models/LabBooking');
 const LabTest = require('../models/LabTest');
 
@@ -12,12 +10,12 @@ exports.getAnalyticsSummary = async (req, res, next) => {
     const totalAppointments = await Appointment.countDocuments();
     const completedAppointments = await Appointment.countDocuments({ status: 'Completed' });
     const cancelledAppointments = await Appointment.countDocuments({ status: 'Cancelled' });
-    const noShowAppointments = await Appointment.countDocuments({ status: 'No-Show' });
+    const expiredAppointments = await Appointment.countDocuments({ status: 'Expired' });
+    const noShowAppointments = await Appointment.countDocuments({ status: { $in: ['No-Show', 'Expired'] } });
     const highPriorityAppointments = await Appointment.countDocuments({ priorityLevel: 'High' });
 
     const totalPatients = await User.countDocuments({ role: 'patient' });
     const totalDoctors = await User.countDocuments({ role: 'doctor' });
-    const totalDonors = await User.countDocuments({ role: 'donor' });
     const totalLabBookings = await LabBooking.countDocuments();
 
     // Department Load Distribution
@@ -31,10 +29,6 @@ exports.getAnalyticsSummary = async (req, res, next) => {
       { $group: { _id: '$slotTime', count: { $sum: 1 } } },
       { $sort: { _id: 1 } }
     ]);
-
-    // Blood Inventory stock levels
-    const bloodStock = await BloodInventory.find().sort({ bloodGroup: 1 });
-    const criticalBloodAlerts = bloodStock.filter(b => b.unitsAvailable <= b.criticalThreshold);
 
     // Lab Test Category stats
     const labStats = await LabBooking.aggregate([
@@ -52,7 +46,7 @@ exports.getAnalyticsSummary = async (req, res, next) => {
       .sort({ createdAt: -1 })
       .limit(10);
 
-    // No-show rate
+    // No-show / Expired rate
     const noShowRate = totalAppointments > 0
       ? Number(((noShowAppointments / totalAppointments) * 100).toFixed(1))
       : 0;
@@ -63,23 +57,20 @@ exports.getAnalyticsSummary = async (req, res, next) => {
         totalAppointments,
         completedAppointments,
         cancelledAppointments,
+        expiredAppointments,
         noShowAppointments,
         noShowRate: `${noShowRate}%`,
         highPriorityAppointments,
         totalPatients,
         totalDoctors,
-        totalDonors,
-        totalLabBookings,
-        criticalBloodAlertCount: criticalBloodAlerts.length
+        totalLabBookings
       },
       charts: {
         departmentLoad,
         peakHours,
-        bloodStock,
         labStats,
         priorityDistribution
       },
-      criticalBloodAlerts,
       recentAppointments
     });
   } catch (error) {

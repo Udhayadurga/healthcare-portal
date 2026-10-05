@@ -34,21 +34,6 @@ const emitQueueUpdate = (doctorId, data) => {
   }
 };
 
-// Emit emergency blood broadcast to donor community and admins
-const emitEmergencyBloodAlert = (bloodRequest) => {
-  if (ioInstance) {
-    ioInstance.to('donors').emit('emergency_blood_broadcast', bloodRequest);
-    ioInstance.to('admins').emit('emergency_blood_broadcast', bloodRequest);
-    ioInstance.emit('new_notification', {
-      title: `EMERGENCY: ${bloodRequest.bloodGroup} Blood Required!`,
-      message: `${bloodRequest.unitsRequired} units needed urgently at ${bloodRequest.hospitalName}, ${bloodRequest.city}.`,
-      type: 'emergency_blood',
-      priority: 'emergency',
-      data: bloodRequest
-    });
-  }
-};
-
 // Emit real-time appointment status update
 const emitAppointmentUpdate = (userId, appointment) => {
   if (ioInstance) {
@@ -81,7 +66,6 @@ module.exports = {
   initSocket,
   getIO,
   emitQueueUpdate,
-  emitEmergencyBloodAlert,
   emitAppointmentUpdate,
   emitLabReportReady
 };

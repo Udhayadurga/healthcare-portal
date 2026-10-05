@@ -63,19 +63,6 @@ export const priorityService = {
   getPatientStatus: (appointmentId) => api.get(`/priority/patient-status/${appointmentId}`)
 };
 
-// Blood Portal Services
-export const bloodService = {
-  getInventory: () => api.get('/blood/inventory'),
-  updateInventory: (bloodGroup, data) => api.put(`/blood/inventory/${bloodGroup}`, data),
-  checkEligibility: (donorId) => api.get(`/blood/eligibility/${donorId}`),
-  createRequest: (data) => api.post('/blood/request', data),
-  getRequests: (params) => api.get('/blood/requests', { params }),
-  matchDonors: (params) => api.get('/blood/match-donors', { params }),
-  recordDonation: (data) => api.post('/blood/record-donation', data),
-  registerDonor: (data) => api.post('/blood/register-donor', data),
-  getAllDonorsAdmin: (params) => api.get('/blood/donors/admin', { params })
-};
-
 // Lab Services
 export const labService = {
   getTests: (params) => api.get('/lab/tests', { params }),
@@ -91,7 +78,6 @@ export const doctorService = {
   getDashboard: () => api.get('/doctor/dashboard'),
   updateAvailability: (data) => api.put('/doctor/availability', typeof data === 'string' ? { availabilityStatus: data } : data),
   getPatientHistory: (patientId) => api.get(`/doctor/patient-history/${patientId}`),
-  requestEmergencyBlood: (data) => api.post('/doctor/emergency-blood-request', data),
   createReferral: (data) => api.post('/doctor/referral', data),
   updatePatientAlerts: (patientId, data) => api.put(`/doctor/patient-alerts/${patientId}`, data)
 };

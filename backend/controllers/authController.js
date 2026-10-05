@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const BloodDonor = require('../models/BloodDonor');
 
 // Generate JWT token
 const sendTokenResponse = (user, statusCode, res) => {
@@ -68,26 +67,8 @@ exports.register = async (req, res, next) => {
       city: city || 'Chennai',
       hasChronicCondition: Boolean(hasChronicCondition),
       chronicDiseases: chronicDiseases || [],
-      doctorProfile: doctorProfile || {},
-      donorProfile: donorProfile || {}
+      doctorProfile: doctorProfile || {}
     });
-
-    // If registered as donor, also initialize BloodDonor document
-    if (user.role === 'donor') {
-      await BloodDonor.create({
-        user: user._id,
-        name: user.name,
-        bloodGroup: user.bloodGroup,
-        phone: user.phone,
-        city: user.city,
-        age: user.age,
-        weightKg: (donorProfile && donorProfile.weightKg) || 65,
-        lastDonationDate: (donorProfile && donorProfile.lastDonationDate) || null,
-        isEligible: true,
-        availableForEmergency: true,
-        status: 'Active'
-      });
-    }
 
     sendTokenResponse(user, 201, res);
   } catch (error) {
@@ -126,16 +107,10 @@ exports.login = async (req, res, next) => {
 exports.getMe = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id);
-    let donorData = null;
-
-    if (user.role === 'donor') {
-      donorData = await BloodDonor.findOne({ user: user._id });
-    }
 
     res.status(200).json({
       success: true,
-      user,
-      donorData
+      user
     });
   } catch (error) {
     next(error);
@@ -179,21 +154,6 @@ exports.updateProfile = async (req, res, next) => {
 
     if (req.user.role === 'doctor' && req.body.doctorProfile) {
       fieldsToUpdate.doctorProfile = req.body.doctorProfile;
-    }
-
-    if (req.user.role === 'donor' && req.body.donorProfile) {
-      fieldsToUpdate.donorProfile = req.body.donorProfile;
-      await BloodDonor.findOneAndUpdate(
-        { user: req.user._id },
-        {
-          name: req.body.name,
-          phone: req.body.phone,
-          bloodGroup: req.body.bloodGroup,
-          city: req.body.city,
-          age: req.body.age,
-          lastDonationDate: req.body.donorProfile.lastDonationDate
-        }
-      );
     }
 
     const user = await User.findByIdAndUpdate(req.user.id, fieldsToUpdate, {

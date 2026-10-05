@@ -31,6 +31,46 @@ const isSlotInPast = (dateStr, slotTimeStr) => {
   return slotDate <= now;
 };
 
+// Auto-expire unattended past or elapsed today's appointments
+const autoExpireUnattendedAppointments = async (queryFilter = {}) => {
+  try {
+    const todayStr = getLocalDateString();
+
+    // 1. Mark past-date unattended Confirmed or Pending appointments as Expired
+    await Appointment.updateMany(
+      {
+        ...queryFilter,
+        appointmentDate: { $lt: todayStr },
+        status: { $in: ['Pending', 'Confirmed'] }
+      },
+      {
+        $set: {
+          status: 'Expired',
+          attendanceStatus: 'Failed to Attend'
+        }
+      }
+    );
+
+    // 2. Mark today's elapsed slot appointments as Expired if patient has not attended
+    const todayAppointments = await Appointment.find({
+      ...queryFilter,
+      appointmentDate: todayStr,
+      status: { $in: ['Pending', 'Confirmed'] }
+    });
+
+    for (const appt of todayAppointments) {
+      if (isSlotInPast(todayStr, appt.slotTime)) {
+        appt.status = 'Expired';
+        appt.attendanceStatus = 'Failed to Attend';
+        await appt.save();
+      }
+    }
+  } catch (err) {
+    console.error('Error auto-expiring unattended appointments:', err.message);
+  }
+};
+exports.autoExpireUnattendedAppointments = autoExpireUnattendedAppointments;
+
 // @desc Book an outpatient appointment with priority scoring
 // @route POST /api/appointments
 exports.bookAppointment = async (req, res, next) => {
@@ -104,7 +144,7 @@ exports.bookAppointment = async (req, res, next) => {
 
     // 2. Predict No-Show Risk Score
     const pastAppointments = await Appointment.find({ patient: patientId });
-    const pastNoShows = pastAppointments.filter(a => a.status === 'No-Show' || a.status === 'Cancelled').length;
+    const pastNoShows = pastAppointments.filter(a => a.status === 'No-Show' || a.status === 'Cancelled' || a.status === 'Expired').length;
     const noShowRiskScore = calculateNoShowRisk({
       pastNoShows,
       totalPastBookings: pastAppointments.length,
@@ -170,6 +210,9 @@ exports.bookAppointment = async (req, res, next) => {
 // @route GET /api/appointments
 exports.getMyAppointments = async (req, res, next) => {
   try {
+    // Automatically transition past unattended appointments to Expired
+    await autoExpireUnattendedAppointments();
+
     let query = {};
     const { status, date, doctorId } = req.query;
 
@@ -219,6 +262,9 @@ exports.getDoctorSlots = async (req, res, next) => {
     if (!date) {
       return res.status(400).json({ success: false, message: 'Please provide a date query parameter (YYYY-MM-DD)' });
     }
+
+    // Automatically expire any elapsed bookings for this doctor before checking slots
+    await autoExpireUnattendedAppointments({ doctor: doctorId });
 
     const doctor = await User.findById(doctorId);
     if (!doctor || doctor.role !== 'doctor') {
@@ -431,7 +477,14 @@ exports.updateAppointmentStatus = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Appointment not found' });
     }
 
-    if (status) appointment.status = status;
+    if (status) {
+      appointment.status = status;
+      if (status === 'Expired' || status === 'No-Show') {
+        appointment.attendanceStatus = 'Failed to Attend';
+      } else if (status === 'Completed') {
+        appointment.attendanceStatus = 'Attended';
+      }
+    }
     if (clinicalNotes !== undefined) appointment.clinicalNotes = clinicalNotes;
     if (prescriptions) appointment.prescriptions = prescriptions;
     if (recommendedLabTests) appointment.recommendedLabTests = recommendedLabTests;
@@ -595,39 +648,25 @@ exports.getAppointmentById = async (req, res, next) => {
   }
 };
 
-// @desc Get authenticated patient's own complete medical history (Visits, Diagnoses, Prescriptions, Lab Tests, Blood Activity)
+// @desc Get authenticated patient's own complete medical history (Visits, Diagnoses, Prescriptions, Lab Tests)
 // @route GET /api/appointments/my-medical-history
 exports.getMyMedicalHistory = async (req, res, next) => {
   try {
     const patientId = req.user.id;
     const LabBooking = require('../models/LabBooking');
-    const BloodRequest = require('../models/BloodRequest');
-    const BloodDonor = require('../models/BloodDonor');
 
-    const [appointments, labBookings, bloodRequests, donorProfile] = await Promise.all([
+    const [appointments, labBookings] = await Promise.all([
       Appointment.find({ patient: patientId })
         .populate('doctor', 'name doctorProfile.department')
         .sort({ appointmentDate: -1, createdAt: -1 }),
       LabBooking.find({ patient: patientId })
         .populate('labTest')
-        .sort({ bookingDate: -1, createdAt: -1 }),
-      BloodRequest.find({
-        $or: [
-          { requester: patientId },
-          { patientName: new RegExp(req.user.name, 'i') }
-        ]
-      }).sort({ createdAt: -1 }),
-      BloodDonor.findOne({
-        $or: [
-          { user: patientId },
-          { email: req.user.email },
-          { phone: req.user.phone }
-        ]
-      })
+        .sort({ bookingDate: -1, createdAt: -1 })
     ]);
 
     // Aggregate summary
     const completedConsultations = appointments.filter(a => a.status === 'Completed');
+    const expiredConsultations = appointments.filter(a => a.status === 'Expired');
     const activePrescriptions = [];
     completedConsultations.forEach(a => {
       if (a.prescriptions && a.prescriptions.length > 0) {
@@ -659,16 +698,13 @@ exports.getMyMedicalHistory = async (req, res, next) => {
       summary: {
         totalAppointments: appointments.length,
         completedConsultations: completedConsultations.length,
+        expiredConsultations: expiredConsultations.length,
         totalLabTests: labBookings.length,
-        totalPrescriptions: activePrescriptions.length,
-        bloodRequestsCount: bloodRequests.length,
-        isRegisteredDonor: Boolean(donorProfile)
+        totalPrescriptions: activePrescriptions.length
       },
       appointments,
       prescriptions: activePrescriptions,
-      labBookings,
-      bloodRequests,
-      donorProfile
+      labBookings
     });
   } catch (error) {
     next(error);

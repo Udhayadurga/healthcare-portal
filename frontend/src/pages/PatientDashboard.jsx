@@ -359,6 +359,7 @@ export const PatientDashboard = ({ onNavigate }) => {
                             appt.status === 'Completed' ? 'bg-emerald-100 text-emerald-800' :
                             appt.status === 'In Progress' ? 'bg-blue-100 text-blue-800 font-bold' :
                             appt.status === 'Cancelled' ? 'bg-red-100 text-red-800' :
+                            appt.status === 'Expired' ? 'bg-amber-100 text-amber-800 border border-amber-300' :
                             'bg-sky-100 text-sky-800'
                           }`}>
                             {appt.status}
@@ -377,8 +378,13 @@ export const PatientDashboard = ({ onNavigate }) => {
                               Cancel
                             </button>
                           )}
+                          {appt.status === 'Expired' && (
+                            <span className="text-amber-700 bg-amber-50 px-2 py-1 rounded text-[10px] font-semibold border border-amber-200">
+                              Missed Consultation
+                            </span>
+                          )}
                           {appt.prescriptions?.length > 0 && (
-                            <span className="text-emerald-700 bg-emerald-50 px-2 py-1 rounded text-[10px] font-bold border border-emerald-200">
+                            <span className="text-emerald-700 bg-emerald-50 px-2 py-1 rounded text-[10px] font-bold border border-emerald-200 ml-2">
                               Prescription Ready
                             </span>
                           )}

@@ -206,6 +206,16 @@ export const DoctorDashboard = () => {
     }
   };
 
+  const handleMarkExpired = async (apptId) => {
+    if (!window.confirm('Mark this appointment as Expired (Patient failed to attend consultation)?')) return;
+    try {
+      await appointmentService.updateStatus(apptId, { status: 'Expired' });
+      fetchDoctorData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error marking appointment as expired');
+    }
+  };
+
   const handleOpenConsultationModal = (appt) => {
     setActiveConsultationAppt(appt);
     setClinicalNotes(appt.clinicalNotes || '');
@@ -705,6 +715,7 @@ export const DoctorDashboard = () => {
                           appt.status === 'Completed' ? 'bg-emerald-100 text-emerald-800' :
                           appt.status === 'In Progress' ? 'bg-blue-600 text-white animate-pulse' :
                           appt.status === 'Cancelled' ? 'bg-red-100 text-red-800' :
+                          appt.status === 'Expired' ? 'bg-amber-100 text-amber-800 border border-amber-300 font-semibold' :
                           'bg-sky-100 text-sky-800'
                         }`}>
                           {appt.status}
@@ -746,6 +757,13 @@ export const DoctorDashboard = () => {
                                 ⚡ {t('btnOverride')}
                               </button>
                             )}
+                            <button
+                              onClick={() => handleMarkExpired(appt._id)}
+                              className="text-amber-700 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-2 py-1.5 rounded-lg text-xs font-bold transition inline-flex items-center gap-1"
+                              title="Mark as Expired (Patient failed to attend)"
+                            >
+                              <Clock className="w-3 h-3" /> Expire
+                            </button>
                           </>
                         )}
 

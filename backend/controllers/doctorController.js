@@ -1,9 +1,8 @@
 const Appointment = require('../models/Appointment');
 const LabBooking = require('../models/LabBooking');
-const BloodRequest = require('../models/BloodRequest');
 const User = require('../models/User');
 const { reorderDoctorQueue } = require('../services/priorityEngine');
-const { emitEmergencyBloodAlert } = require('../services/socketService');
+const { autoExpireUnattendedAppointments } = require('./appointmentController');
 
 // @desc Get Doctor Dashboard Metrics and Active Daily Queue
 // @route GET /api/doctor/dashboard
@@ -11,6 +10,11 @@ exports.getDoctorDashboardSummary = async (req, res, next) => {
   try {
     const doctorId = req.user.id;
     const today = new Date().toISOString().split('T')[0];
+
+    // Auto-expire any elapsed/missed slots before loading today's queue
+    if (autoExpireUnattendedAppointments) {
+      await autoExpireUnattendedAppointments({ doctor: doctorId });
+    }
 
     const todayAppointments = await Appointment.find({
       doctor: doctorId,
@@ -171,38 +175,6 @@ exports.getPatientHistory = async (req, res, next) => {
       patient,
       pastAppointments,
       labReports
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// @desc Doctor triggers Emergency Blood Request from consultation room
-// @route POST /api/doctor/emergency-blood-request
-exports.requestEmergencyBlood = async (req, res, next) => {
-  try {
-    const { patientName, bloodGroup, unitsRequired, reason, hospitalName } = req.body;
-
-    const bloodRequest = await BloodRequest.create({
-      requester: req.user.id,
-      requesterName: req.user.name,
-      requesterRole: 'doctor',
-      patientName: patientName || 'OPD Emergency Patient',
-      bloodGroup,
-      unitsRequired: unitsRequired || 2,
-      hospitalName: hospitalName || 'MEDCARE HOSPITAL (OPD Emergency)',
-      urgencyLevel: 'Critical / Immediate',
-      reason: reason || 'Acute clinical hemorrhage / urgent stabilization',
-      isEmergencyAlertSent: true,
-      status: 'Broadcasted'
-    });
-
-    emitEmergencyBloodAlert(bloodRequest);
-
-    res.status(201).json({
-      success: true,
-      message: `Critical blood broadcast dispatched for ${unitsRequired} units of ${bloodGroup}!`,
-      bloodRequest
     });
   } catch (error) {
     next(error);

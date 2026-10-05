@@ -147,7 +147,6 @@ app.get('/api/lab/reports/:id/download', async (req, res) => {
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/appointments', require('./routes/appointmentRoutes'));
 app.use('/api/priority', require('./routes/priorityRoutes'));
-app.use('/api/blood', require('./routes/bloodRoutes'));
 app.use('/api/lab', require('./routes/labRoutes'));
 app.use('/api/doctor', require('./routes/doctorRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
@@ -159,7 +158,7 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'OK',
     timestamp: new Date().toISOString(),
-    service: 'Healthcare Outpatient, Priority & Blood System'
+    service: 'Healthcare Outpatient, Priority & Lab System'
   });
 });
 

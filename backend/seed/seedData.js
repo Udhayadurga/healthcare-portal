@@ -2,9 +2,6 @@ const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const User = require('../models/User');
 const Appointment = require('../models/Appointment');
-const BloodDonor = require('../models/BloodDonor');
-const BloodRequest = require('../models/BloodRequest');
-const BloodInventory = require('../models/BloodInventory');
 const LabTest = require('../models/LabTest');
 const LabBooking = require('../models/LabBooking');
 const Notification = require('../models/Notification');
@@ -21,9 +18,6 @@ const seedDatabase = async () => {
     // Clear existing collections
     await User.deleteMany();
     await Appointment.deleteMany();
-    await BloodDonor.deleteMany();
-    await BloodRequest.deleteMany();
-    await BloodInventory.deleteMany();
     await LabTest.deleteMany();
     await LabBooking.deleteMany();
     await Notification.deleteMany();
@@ -215,123 +209,7 @@ const seedDatabase = async () => {
     }
     console.log(`Created ${createdPatients.length} Patients.`);
 
-    // 4. Create Blood Donors
-    const donorsData = [
-      {
-        name: 'Anand V (Active Donor)',
-        email: 'anand.donor@gmail.com',
-        password: 'Donor@123',
-        role: 'donor',
-        phone: '+91 98840 55443',
-        age: 29,
-        gender: 'Male',
-        bloodGroup: 'O-',
-        city: 'Chennai',
-        donorProfile: {
-          lastDonationDate: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000), // 120 days ago (Eligible)
-          totalDonations: 6,
-          weightKg: 72,
-          isAvailableForEmergency: true
-        }
-      },
-      {
-        name: 'Deepa Krishnan',
-        email: 'deepa.donor@gmail.com',
-        password: 'Donor@123',
-        role: 'donor',
-        phone: '+91 98840 66554',
-        age: 32,
-        gender: 'Female',
-        bloodGroup: 'A+',
-        city: 'Chennai',
-        donorProfile: {
-          lastDonationDate: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000), // 45 days ago (Ineligible, needs 90 days)
-          totalDonations: 3,
-          weightKg: 58,
-          isAvailableForEmergency: true
-        }
-      },
-      {
-        name: 'Karthik Raja',
-        email: 'karthik.donor@gmail.com',
-        password: 'Donor@123',
-        role: 'donor',
-        phone: '+91 98840 77665',
-        age: 25,
-        gender: 'Male',
-        bloodGroup: 'B+',
-        city: 'Chennai',
-        donorProfile: {
-          lastDonationDate: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000), // 180 days ago (Eligible)
-          totalDonations: 4,
-          weightKg: 68,
-          isAvailableForEmergency: true
-        }
-      },
-      {
-        name: 'Divya Bharathi',
-        email: 'divya.donor@gmail.com',
-        password: 'Donor@123',
-        role: 'donor',
-        phone: '+91 98840 88776',
-        age: 35,
-        gender: 'Female',
-        bloodGroup: 'AB-',
-        city: 'Chennai',
-        donorProfile: {
-          lastDonationDate: null, // First time donor
-          totalDonations: 0,
-          weightKg: 62,
-          isAvailableForEmergency: true
-        }
-      }
-    ];
-
-    const createdDonors = [];
-    for (const don of donorsData) {
-      const user = await User.create(don);
-      const isEligible = !don.donorProfile.lastDonationDate ||
-        (Date.now() - new Date(don.donorProfile.lastDonationDate).getTime()) >= (90 * 24 * 60 * 60 * 1000);
-
-      const bDonor = await BloodDonor.create({
-        user: user._id,
-        name: user.name,
-        bloodGroup: user.bloodGroup,
-        phone: user.phone,
-        city: user.city,
-        age: user.age,
-        weightKg: don.donorProfile.weightKg,
-        lastDonationDate: don.donorProfile.lastDonationDate,
-        isEligible,
-        availableForEmergency: true,
-        donationHistory: don.donorProfile.totalDonations > 0 ? [
-          {
-            donationDate: don.donorProfile.lastDonationDate,
-            units: 1,
-            hospitalName: 'MEDCARE HOSPITAL Chennai',
-            certificateId: `BLD-CERT-${Math.floor(100000 + Math.random() * 900000)}`
-          }
-        ] : []
-      });
-      createdDonors.push(bDonor);
-    }
-    console.log(`Created ${createdDonors.length} Blood Donors.`);
-
-    // 5. Initialize Blood Inventory
-    const initialBloodInventory = [
-      { bloodGroup: 'A+', unitsAvailable: 14, criticalThreshold: 5 },
-      { bloodGroup: 'A-', unitsAvailable: 6, criticalThreshold: 4 },
-      { bloodGroup: 'B+', unitsAvailable: 18, criticalThreshold: 6 },
-      { bloodGroup: 'B-', unitsAvailable: 4, criticalThreshold: 4 },
-      { bloodGroup: 'AB+', unitsAvailable: 9, criticalThreshold: 3 },
-      { bloodGroup: 'AB-', unitsAvailable: 2, criticalThreshold: 3 }, // Critical Alert
-      { bloodGroup: 'O+', unitsAvailable: 22, criticalThreshold: 8 },
-      { bloodGroup: 'O-', unitsAvailable: 3, criticalThreshold: 5 }  // Critical Alert
-    ];
-    await BloodInventory.insertMany(initialBloodInventory);
-    console.log('Blood Inventory initialized.');
-
-    // 6. Create Lab Tests Catalog
+    // 4. Create Lab Tests Catalog
     const labTestsData = [
       {
         name: 'Complete Blood Count (CBC) with ESR',
@@ -584,22 +462,6 @@ const seedDatabase = async () => {
         doctorRemarks: 'Normal hematology profile. Continue prescribed diabetic medications.',
         pdfUrl: `/api/lab/reports/sample/download`
       }
-    });
-
-    // 9. Create Sample Emergency Blood Request
-    await BloodRequest.create({
-      requester: docPriya._id,
-      requesterName: docPriya.name,
-      requesterRole: 'doctor',
-      patientName: 'Emergency Cardiac ICU Patient',
-      bloodGroup: 'O-',
-      unitsRequired: 2,
-      hospitalName: 'MEDCARE HOSPITAL (Cardio ICU)',
-      city: 'Chennai',
-      urgencyLevel: 'Critical / Immediate',
-      reason: 'Urgent Coronary Bypass Grafting (CABG) requirement',
-      isEmergencyAlertSent: true,
-      status: 'Broadcasted'
     });
 
     console.log('Sample Data Seeded Successfully!');
