@@ -21,14 +21,7 @@ A full-stack, enterprise-grade healthcare management application featuring intel
 - Reschedule and cancellation workflows with instant slot release
 - Real-time doctor availability status (`Available`, `In Consultation`, `On Leave`)
 
-### 3. 🩸 Blood Donation & Emergency Matcher
-- 90-day donation eligibility calculator (ensures minimum 3-month gap)
-- Real-time inventory tracking for all 8 blood groups (A+, A-, B+, B-, AB+, AB-, O+, O-) with low-stock alerts
-- Smart Donor Matching based on compatible blood groups and city
-- Emergency one-click blood broadcast dispatched to eligible donors & admins via Socket.io
-- Lifetime donation log and printable/downloadable Digital Life Saver Certificate
-
-### 4. 🧪 Lab Test Booking Module
+### 3. 🧪 Lab Test Booking Module
 - Searchable catalog of lab tests (CBC, Lipid Panel, MRI Brain, Chest X-Ray, HbA1c, LFT, ECG)
 - Daily capacity management per test
 - Home sample collection option (+₹150 phlebotomist visit)
@@ -36,11 +29,11 @@ A full-stack, enterprise-grade healthcare management application featuring intel
 - Pathologist-verified report generation with abnormal parameter highlighting and 1-click PDF printing
 - AI symptom-to-test recommendation engine
 
-### 5. 👥 Role-Based Portals
+### 4. 👥 Role-Based Portals
 - **Patient Dashboard**: Live queue tracker, appointments history, diagnostic report viewer, blood requests
 - **Doctor Dashboard**: Priority-sorted patient queue, consultation status updater, digital prescription writer, emergency blood requisition, medical history inspection
 - **Admin Dashboard**: Chart.js analytics (Department Load, Peak Hours, Blood Inventory), user and doctor management, no-show detection
 - **Blood Donor Dashboard**: 90-day eligibility indicator, live emergency alerts stream with 1-click pledge, lifetime donation certificates
 
-### 6. 🌐 Multi-Language Support
+### 5. 🌐 Multi-Language Support
 - Full English and Tamil (`தமிழ்`) localization switcher across all UI modules.
