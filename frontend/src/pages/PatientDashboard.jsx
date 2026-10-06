@@ -32,7 +32,10 @@ import {
   ShieldAlert,
   Scale,
   ArrowRightLeft,
-  Accessibility
+  Accessibility,
+  Droplets,
+  Syringe,
+  Printer
 } from 'lucide-react';
 
 export const PatientDashboard = ({ onNavigate }) => {
@@ -62,6 +65,40 @@ export const PatientDashboard = ({ onNavigate }) => {
   const [activePatientTab, setActivePatientTab] = useState('overview'); // 'overview' | 'medical_history' | 'feedback'
   const [loading, setLoading] = useState(true);
   const [selectedReportBooking, setSelectedReportBooking] = useState(null);
+
+  // Digital Prescription Viewer & Medicine Type Filter State
+  const [selectedPrescriptionAppt, setSelectedPrescriptionAppt] = useState(null);
+  const [prescriptionFilter, setPrescriptionFilter] = useState('All'); // 'All' | 'Tablet' | 'Syrup' | 'Injection'
+  const [historyMedFilter, setHistoryMedFilter] = useState({}); // { [apptId]: 'All' | 'Tablet' | 'Syrup' | 'Injection' }
+
+  // Helper to categorize medicine into Tablet, Syrup, Injection
+  const getMedicineType = (p) => {
+    if (p.medicineType) return p.medicineType;
+    if (p.type) return p.type;
+    const text = `${p.medicine || ''} ${p.dosage || ''}`.toLowerCase();
+    if (
+      text.includes('syrup') ||
+      text.includes('syr') ||
+      text.includes('suspension') ||
+      text.includes('liquid') ||
+      text.includes('tonic') ||
+      text.includes('ml')
+    ) {
+      return 'Syrup';
+    }
+    if (
+      text.includes('inj') ||
+      text.includes('injection') ||
+      text.includes('vial') ||
+      text.includes('ampoule') ||
+      text.includes('iv') ||
+      text.includes('im') ||
+      text.includes('infusion')
+    ) {
+      return 'Injection';
+    }
+    return 'Tablet';
+  };
 
   // Cancellation Modal State
   const [cancelModalAppt, setCancelModalAppt] = useState(null);
@@ -418,7 +455,13 @@ export const PatientDashboard = ({ onNavigate }) => {
                           <div className="text-[11px] text-slate-500">{appt.slotTime}</div>
                         </td>
                         <td className="p-3">
-                          <PriorityBadge level={appt.priorityLevel} score={appt.priorityScore} isEmergency={appt.isEmergency} size="sm" />
+                          <PriorityBadge
+                            level={appt.priorityLevel}
+                            score={appt.priorityScore}
+                            isEmergency={appt.isEmergency}
+                            isDealt={appt.status === 'Completed'}
+                            size="sm"
+                          />
                         </td>
                         <td className="p-3 font-mono font-bold text-sky-700">
                           #{appt.queuePosition || 1}
@@ -453,9 +496,18 @@ export const PatientDashboard = ({ onNavigate }) => {
                             </span>
                           )}
                           {appt.prescriptions?.length > 0 && (
-                            <span className="text-emerald-700 bg-emerald-50 px-2 py-1 rounded text-[10px] font-bold border border-emerald-200 ml-2">
-                              Prescription Ready
-                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedPrescriptionAppt(appt);
+                                setPrescriptionFilter('All');
+                              }}
+                              className="inline-flex items-center gap-1.5 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-lg text-[10px] font-bold transition shadow-2xs ml-2 cursor-pointer"
+                              title="Click to view digital prescription with Tablet, Syrup, and Injection filters"
+                            >
+                              <Pill className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Digital Prescription ({appt.prescriptions.length})</span>
+                            </button>
                           )}
                         </td>
                       </tr>
@@ -760,23 +812,135 @@ export const PatientDashboard = ({ onNavigate }) => {
                           </div>
                         )}
 
-                        {a.prescriptions && a.prescriptions.length > 0 && (
-                          <div className="space-y-2">
-                            <span className="text-xs font-bold text-emerald-800 flex items-center gap-1">
-                              <Pill className="w-3.5 h-3.5" /> Prescribed Medications:
-                            </span>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              {a.prescriptions.map((p, idx) => (
-                                <div key={idx} className="bg-emerald-50/70 border border-emerald-200 p-2.5 rounded-xl text-xs">
-                                  <div className="font-bold text-emerald-950">{p.medicine}</div>
-                                  <div className="text-[11px] text-emerald-800 mt-0.5">
-                                    Dosage: {p.dosage} • Frequency: {p.frequency} ({p.duration})
-                                  </div>
+                        {a.prescriptions && a.prescriptions.length > 0 && (() => {
+                          const currentFilter = historyMedFilter[a._id] || 'All';
+                          const tabletsCount = a.prescriptions.filter(p => getMedicineType(p) === 'Tablet').length;
+                          const syrupsCount = a.prescriptions.filter(p => getMedicineType(p) === 'Syrup').length;
+                          const injectionsCount = a.prescriptions.filter(p => getMedicineType(p) === 'Injection').length;
+                          const filteredMeds = a.prescriptions.filter(p => {
+                            if (currentFilter === 'All') return true;
+                            return getMedicineType(p) === currentFilter;
+                          });
+
+                          return (
+                            <div className="space-y-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+                              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                                <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                  <Pill className="w-4 h-4 text-emerald-600" /> Prescribed Medications:
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedPrescriptionAppt(a);
+                                    setPrescriptionFilter('All');
+                                  }}
+                                  className="text-[11px] font-bold text-sky-600 hover:text-sky-800 hover:underline flex items-center gap-1"
+                                >
+                                  <span>View Prescription Card</span>
+                                </button>
+                              </div>
+
+                              {/* Medication Type Filters: Tablet, Syrup, Injection */}
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="text-[11px] font-bold text-slate-400 mr-1">Filter:</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setHistoryMedFilter({ ...historyMedFilter, [a._id]: 'All' })}
+                                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1 ${
+                                    currentFilter === 'All'
+                                      ? 'bg-slate-900 text-white shadow-2xs'
+                                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                  }`}
+                                >
+                                  All ({a.prescriptions.length})
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setHistoryMedFilter({ ...historyMedFilter, [a._id]: 'Tablet' })}
+                                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1 ${
+                                    currentFilter === 'Tablet'
+                                      ? 'bg-emerald-600 text-white shadow-2xs'
+                                      : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+                                  }`}
+                                >
+                                  <Pill className="w-3 h-3" /> Tablets ({tabletsCount})
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setHistoryMedFilter({ ...historyMedFilter, [a._id]: 'Syrup' })}
+                                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1 ${
+                                    currentFilter === 'Syrup'
+                                      ? 'bg-amber-600 text-white shadow-2xs'
+                                      : 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100'
+                                  }`}
+                                >
+                                  <Droplets className="w-3 h-3" /> Syrups ({syrupsCount})
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setHistoryMedFilter({ ...historyMedFilter, [a._id]: 'Injection' })}
+                                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1 ${
+                                    currentFilter === 'Injection'
+                                      ? 'bg-purple-600 text-white shadow-2xs'
+                                      : 'bg-purple-50 text-purple-800 border border-purple-200 hover:bg-purple-100'
+                                  }`}
+                                >
+                                  <Syringe className="w-3 h-3" /> Injections ({injectionsCount})
+                                </button>
+                              </div>
+
+                              {/* Filtered Medication Grid */}
+                              {filteredMeds.length === 0 ? (
+                                <div className="p-4 text-center text-slate-400 text-xs bg-slate-50 rounded-xl border border-slate-100">
+                                  No {currentFilter.toLowerCase()}s prescribed in this consultation.
                                 </div>
-                              ))}
+                              ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                  {filteredMeds.map((p, idx) => {
+                                    const medType = getMedicineType(p);
+                                    return (
+                                      <div
+                                        key={idx}
+                                        className={`p-2.5 rounded-xl text-xs border ${
+                                          medType === 'Injection'
+                                            ? 'bg-purple-50/70 border-purple-200 text-purple-950'
+                                            : medType === 'Syrup'
+                                            ? 'bg-amber-50/70 border-amber-200 text-amber-950'
+                                            : 'bg-emerald-50/70 border-emerald-200 text-emerald-950'
+                                        }`}
+                                      >
+                                        <div className="flex justify-between items-start gap-1">
+                                          <span className="font-bold">{p.medicine}</span>
+                                          <span
+                                            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                                              medType === 'Injection'
+                                                ? 'bg-purple-200 text-purple-900'
+                                                : medType === 'Syrup'
+                                                ? 'bg-amber-200 text-amber-900'
+                                                : 'bg-emerald-200 text-emerald-900'
+                                            }`}
+                                          >
+                                            {medType === 'Injection' ? (
+                                              <Syringe className="w-2.5 h-2.5" />
+                                            ) : medType === 'Syrup' ? (
+                                              <Droplets className="w-2.5 h-2.5" />
+                                            ) : (
+                                              <Pill className="w-2.5 h-2.5" />
+                                            )}
+                                            <span>{medType}</span>
+                                          </span>
+                                        </div>
+                                        <div className="text-[11px] opacity-80 mt-1">
+                                          Dosage: <strong>{p.dosage || 'Standard'}</strong> • Frequency: {p.frequency} ({p.duration})
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
 
                         {a.recommendedLabTests && a.recommendedLabTests.length > 0 && (
                           <div className="text-xs text-slate-600 flex items-center gap-1.5">
@@ -1220,6 +1384,267 @@ export const PatientDashboard = ({ onNavigate }) => {
                 <XCircle className="w-4 h-4" />
                 <span>{cancellingLoading ? 'Cancelling...' : 'Confirm Cancellation'}</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Digital Outpatient Prescription Modal */}
+      {selectedPrescriptionAppt && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-6 sm:p-8 border border-slate-200 space-y-5 my-8">
+            {/* Modal Header */}
+            <div className="flex justify-between items-start border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 font-bold">
+                  <Pill className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-lg text-slate-900">
+                      MEDCARE HOSPITAL
+                    </h3>
+                    <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
+                      Official e-Prescription
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Outpatient Clinical Order & Prescribed Medical Plan
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedPrescriptionAppt(null)}
+                className="text-slate-400 hover:text-slate-600 text-sm font-bold w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Doctor & Patient Info Strip */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs">
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold uppercase text-slate-400">Consulting Specialist:</span>
+                <div className="font-bold text-slate-900 text-sm">{selectedPrescriptionAppt.doctorName}</div>
+                <div className="text-slate-600 font-medium">Department: {selectedPrescriptionAppt.department}</div>
+                <div className="text-slate-500">Date: <strong>{selectedPrescriptionAppt.appointmentDate}</strong> at <strong>{selectedPrescriptionAppt.slotTime}</strong></div>
+              </div>
+              <div className="space-y-1 sm:border-l sm:border-slate-200 sm:pl-3">
+                <span className="text-[10px] font-bold uppercase text-slate-400">Patient Details:</span>
+                <div className="font-bold text-slate-900 text-sm">{selectedPrescriptionAppt.patientName || user?.name}</div>
+                <div className="text-slate-600">
+                  {user?.phone ? `Phone: ${user.phone}` : ''} {user?.age ? `• Age: ${user.age}y` : ''} {user?.gender ? `• ${user.gender}` : ''}
+                </div>
+                {selectedPrescriptionAppt.symptoms && (
+                  <div className="text-slate-500 italic truncate">
+                    Presenting: "{selectedPrescriptionAppt.symptoms}"
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Clinical Diagnosis & Notes */}
+            {selectedPrescriptionAppt.clinicalNotes && (
+              <div className="bg-sky-50/70 border border-sky-200 p-3 rounded-2xl text-xs space-y-1">
+                <span className="font-bold text-[10px] uppercase text-sky-800">Doctor's Clinical Diagnosis & Advice:</span>
+                <p className="text-sky-950 font-medium whitespace-pre-wrap">{selectedPrescriptionAppt.clinicalNotes}</p>
+              </div>
+            )}
+
+            {/* Recorded Vitals (if available) */}
+            {selectedPrescriptionAppt.vitals && (selectedPrescriptionAppt.vitals.bloodPressureSystolic || selectedPrescriptionAppt.vitals.pulseHeartRate) && (
+              <div className="bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs flex flex-wrap items-center gap-3 text-slate-700">
+                <span className="font-bold text-[10px] uppercase text-slate-500">Recorded Vitals:</span>
+                {selectedPrescriptionAppt.vitals.bloodPressureSystolic && (
+                  <span>BP: <strong>{selectedPrescriptionAppt.vitals.bloodPressureSystolic}/{selectedPrescriptionAppt.vitals.bloodPressureDiastolic} mmHg</strong></span>
+                )}
+                {selectedPrescriptionAppt.vitals.pulseHeartRate && (
+                  <span>Pulse: <strong>{selectedPrescriptionAppt.vitals.pulseHeartRate} BPM</strong></span>
+                )}
+                {selectedPrescriptionAppt.vitals.oxygenSaturation && (
+                  <span>SpO₂: <strong>{selectedPrescriptionAppt.vitals.oxygenSaturation}%</strong></span>
+                )}
+                {selectedPrescriptionAppt.vitals.temperature && (
+                  <span>Temp: <strong>{selectedPrescriptionAppt.vitals.temperature}°F</strong></span>
+                )}
+                {selectedPrescriptionAppt.vitals.bloodSugarMgDl && (
+                  <span>Sugar: <strong>{selectedPrescriptionAppt.vitals.bloodSugarMgDl} mg/dL</strong></span>
+                )}
+              </div>
+            )}
+
+            {/* Prescriptions Filter Section */}
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h4 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                  <Pill className="w-4 h-4 text-emerald-600" />
+                  <span>Prescribed Medications ({selectedPrescriptionAppt.prescriptions?.length || 0})</span>
+                </h4>
+                {/* Filter Pills for Tablet, Syrup, Injection */}
+                <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setPrescriptionFilter('All')}
+                    className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1 text-xs ${
+                      prescriptionFilter === 'All'
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    All ({selectedPrescriptionAppt.prescriptions?.length || 0})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPrescriptionFilter('Tablet')}
+                    className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1 text-xs ${
+                      prescriptionFilter === 'Tablet'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+                    }`}
+                  >
+                    <Pill className="w-3 h-3" /> Tablets ({selectedPrescriptionAppt.prescriptions?.filter(p => getMedicineType(p) === 'Tablet').length || 0})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPrescriptionFilter('Syrup')}
+                    className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1 text-xs ${
+                      prescriptionFilter === 'Syrup'
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100'
+                    }`}
+                  >
+                    <Droplets className="w-3 h-3" /> Syrups ({selectedPrescriptionAppt.prescriptions?.filter(p => getMedicineType(p) === 'Syrup').length || 0})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPrescriptionFilter('Injection')}
+                    className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1 text-xs ${
+                      prescriptionFilter === 'Injection'
+                        ? 'bg-purple-600 text-white shadow-xs'
+                        : 'bg-purple-50 text-purple-800 border border-purple-200 hover:bg-purple-100'
+                    }`}
+                  >
+                    <Syringe className="w-3 h-3" /> Injections ({selectedPrescriptionAppt.prescriptions?.filter(p => getMedicineType(p) === 'Injection').length || 0})
+                  </button>
+                </div>
+              </div>
+
+              {/* Filtered Medications List */}
+              {(() => {
+                const meds = (selectedPrescriptionAppt.prescriptions || []).filter((p) => {
+                  if (prescriptionFilter === 'All') return true;
+                  return getMedicineType(p) === prescriptionFilter;
+                });
+
+                if (meds.length === 0) {
+                  return (
+                    <div className="p-8 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">
+                      No medications found under category "<strong>{prescriptionFilter}</strong>".
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-2">
+                    {meds.map((p, idx) => {
+                      const medType = getMedicineType(p);
+                      return (
+                        <div
+                          key={idx}
+                          className={`p-3.5 rounded-2xl border flex flex-wrap justify-between items-center gap-2 ${
+                            medType === 'Injection'
+                              ? 'bg-purple-50/60 border-purple-200'
+                              : medType === 'Syrup'
+                              ? 'bg-amber-50/60 border-amber-200'
+                              : 'bg-emerald-50/60 border-emerald-200'
+                          }`}
+                        >
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-slate-900 text-sm">{p.medicine}</span>
+                              <span
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                  medType === 'Injection'
+                                    ? 'bg-purple-200 text-purple-900'
+                                    : medType === 'Syrup'
+                                    ? 'bg-amber-200 text-amber-900'
+                                    : 'bg-emerald-200 text-emerald-900'
+                                }`}
+                              >
+                                {medType === 'Injection' ? (
+                                  <Syringe className="w-3 h-3" />
+                                ) : medType === 'Syrup' ? (
+                                  <Droplets className="w-3 h-3" />
+                                ) : (
+                                  <Pill className="w-3 h-3" />
+                                )}
+                                <span>{medType}</span>
+                              </span>
+                            </div>
+                            <div className="text-xs text-slate-600">
+                              Dosage: <strong>{p.dosage || 'Standard'}</strong> • Timing: <strong>{p.frequency}</strong> • Duration: <strong>{p.duration}</strong>
+                            </div>
+                          </div>
+                          <span className="text-[11px] font-semibold text-slate-500 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs">
+                            Active Rx
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Recommended Lab Tests */}
+            {selectedPrescriptionAppt.recommendedLabTests?.length > 0 && (
+              <div className="bg-purple-50 border border-purple-200 p-3 rounded-2xl text-xs space-y-1">
+                <span className="font-bold text-[10px] uppercase text-purple-800 flex items-center gap-1">
+                  <FlaskConical className="w-3.5 h-3.5 text-purple-600" />
+                  Recommended Diagnostic Investigations:
+                </span>
+                <p className="text-purple-950 font-medium">
+                  {selectedPrescriptionAppt.recommendedLabTests.join(', ')}
+                </p>
+              </div>
+            )}
+
+            {/* Follow-up Note */}
+            {selectedPrescriptionAppt.followUp?.isFollowUpRequired && (
+              <div className="bg-blue-50 border border-blue-200 p-3 rounded-2xl text-xs space-y-1">
+                <span className="font-bold text-[10px] uppercase text-blue-800 flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                  Scheduled Follow-up Review:
+                </span>
+                <p className="text-blue-950 font-medium">
+                  Next visit on <strong>{selectedPrescriptionAppt.followUp.followUpDate}</strong> ({selectedPrescriptionAppt.followUp.followUpSlot}). {selectedPrescriptionAppt.followUp.followUpInstructions}
+                </p>
+              </div>
+            )}
+
+            {/* Action Bar */}
+            <div className="flex justify-between items-center pt-3 border-t border-slate-100">
+              <span className="text-[11px] text-slate-400">
+                MEDCARE HOSPITAL • Electronic Medical Records
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition flex items-center gap-1.5"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print Prescription</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPrescriptionAppt(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md transition"
+                >
+                  Close Window
+                </button>
+              </div>
             </div>
           </div>
         </div>

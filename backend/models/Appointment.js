@@ -113,7 +113,11 @@ const appointmentSchema = new mongoose.Schema({
     medicine: String,
     dosage: String,
     frequency: String,
-    duration: String
+    duration: String,
+    medicineType: {
+      type: String,
+      default: 'Tablet'
+    }
   }],
   recommendedLabTests: {
     type: [String],

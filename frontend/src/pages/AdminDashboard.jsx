@@ -59,11 +59,36 @@ export const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('analytics'); // 'analytics' | 'doctors' | 'lab-tests' | 'feedback' | 'users'
   const [analytics, setAnalytics] = useState(null);
   const [usersList, setUsersList] = useState([]);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userRoleFilter, setUserRoleFilter] = useState('all'); // 'all' | 'doctor' | 'patient' | 'admin'
   const [feedbacksList, setFeedbacksList] = useState([]);
   const [feedbackFilter, setFeedbackFilter] = useState({ category: 'All', rating: 'All' });
   const [feedbackReplyText, setFeedbackReplyText] = useState({});
   const [selectedDoctorDetail, setSelectedDoctorDetail] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const filteredUsersList = usersList.filter((u) => {
+    const matchesRole = userRoleFilter === 'all' || u.role === userRoleFilter;
+    if (!matchesRole) return false;
+    if (!userSearchQuery.trim()) return true;
+    const q = userSearchQuery.toLowerCase().trim();
+    const name = (u.name || '').toLowerCase();
+    const email = (u.email || '').toLowerCase();
+    const phone = (u.phone || '').toLowerCase();
+    const role = (u.role || '').toLowerCase();
+    const city = (u.city || '').toLowerCase();
+    const dept = (u.doctorProfile?.department || '').toLowerCase();
+    const spec = (u.doctorProfile?.specialization || '').toLowerCase();
+    return (
+      name.includes(q) ||
+      email.includes(q) ||
+      phone.includes(q) ||
+      role.includes(q) ||
+      city.includes(q) ||
+      dept.includes(q) ||
+      spec.includes(q)
+    );
+  });
 
   // Diagnostic Lab Tests Catalog State
   const [labTestsList, setLabTestsList] = useState([]);
@@ -621,10 +646,10 @@ export const AdminDashboard = () => {
       {/* All Users Directory Tab */}
       {activeTab === 'users' && (
         <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-          <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+          <div className="flex flex-wrap justify-between items-center gap-3 border-b border-slate-100 pb-4">
             <div>
               <h3 className="font-bold text-slate-900 text-lg">Hospital Staff & Registered Users</h3>
-              <p className="text-xs text-slate-500">Manage all registered accounts across all roles</p>
+              <p className="text-xs text-slate-500">Manage, search, and audit all registered accounts across all roles</p>
             </div>
             <button
               onClick={handleOpenAddDoctor}
@@ -634,40 +659,149 @@ export const AdminDashboard = () => {
             </button>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
-              <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
-                <tr>
-                  <th className="p-3">User Name</th>
-                  <th className="p-3">Email Address</th>
-                  <th className="p-3">Role</th>
-                  <th className="p-3">Phone</th>
-                  <th className="p-3">City / Info</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {usersList.map((u) => (
-                  <tr key={u._id} className="hover:bg-slate-50">
-                    <td className="p-3 font-bold text-slate-900">{u.name}</td>
-                    <td className="p-3 text-slate-600">{u.email}</td>
-                    <td className="p-3">
-                      <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] uppercase ${
-                        u.role === 'admin' ? 'bg-purple-100 text-purple-700' :
-                        u.role === 'doctor' ? 'bg-blue-100 text-blue-700' :
-                        'bg-emerald-100 text-emerald-700'
-                      }`}>
-                        {u.role}
-                      </span>
-                    </td>
-                    <td className="p-3 text-slate-600">{u.phone || '—'}</td>
-                    <td className="p-3 text-slate-500">
-                      {u.doctorProfile?.department || u.city || 'Chennai'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          {/* Search & Filter Controls */}
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+            {/* Search Input */}
+            <div className="relative flex-1 min-w-[240px] max-w-md">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={userSearchQuery}
+                onChange={(e) => setUserSearchQuery(e.target.value)}
+                placeholder="Search by name, email, phone, role, department or city..."
+                className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              />
+              {userSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setUserSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold w-4 h-4 flex items-center justify-center rounded-full bg-slate-100"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Role Filter Pills */}
+            <div className="flex flex-wrap items-center gap-1.5 text-xs">
+              <button
+                type="button"
+                onClick={() => setUserRoleFilter('all')}
+                className={`px-3 py-1.5 rounded-xl font-bold transition text-xs ${
+                  userRoleFilter === 'all'
+                    ? 'bg-purple-600 text-white shadow-xs'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                All ({usersList.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setUserRoleFilter('doctor')}
+                className={`px-3 py-1.5 rounded-xl font-bold transition text-xs ${
+                  userRoleFilter === 'doctor'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                Doctors ({usersList.filter(u => u.role === 'doctor').length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setUserRoleFilter('patient')}
+                className={`px-3 py-1.5 rounded-xl font-bold transition text-xs ${
+                  userRoleFilter === 'patient'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                Patients ({usersList.filter(u => u.role === 'patient').length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setUserRoleFilter('admin')}
+                className={`px-3 py-1.5 rounded-xl font-bold transition text-xs ${
+                  userRoleFilter === 'admin'
+                    ? 'bg-purple-600 text-white shadow-xs'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                Admins ({usersList.filter(u => u.role === 'admin').length})
+              </button>
+            </div>
           </div>
+
+          <div className="flex justify-between items-center text-xs text-slate-500 px-1">
+            <span>
+              Showing <strong>{filteredUsersList.length}</strong> of <strong>{usersList.length}</strong> registered users
+              {userSearchQuery && <span> matching "<strong>{userSearchQuery}</strong>"</span>}
+            </span>
+            {(userSearchQuery || userRoleFilter !== 'all') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setUserSearchQuery('');
+                  setUserRoleFilter('all');
+                }}
+                className="text-purple-600 hover:underline font-semibold"
+              >
+                Reset filters
+              </button>
+            )}
+          </div>
+
+          {filteredUsersList.length === 0 ? (
+            <div className="p-12 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+              <Search className="w-8 h-8 text-slate-300 mx-auto" />
+              <p className="font-bold text-slate-600 text-sm">No users found</p>
+              <p>No registered user matches your current search criteria.</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setUserSearchQuery('');
+                  setUserRoleFilter('all');
+                }}
+                className="mt-2 px-3 py-1 bg-purple-600 text-white rounded-lg text-xs font-semibold hover:bg-purple-500 transition"
+              >
+                Clear Search & Filters
+              </button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
+                  <tr>
+                    <th className="p-3">User Name</th>
+                    <th className="p-3">Email Address</th>
+                    <th className="p-3">Role</th>
+                    <th className="p-3">Phone</th>
+                    <th className="p-3">City / Info</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredUsersList.map((u) => (
+                    <tr key={u._id} className="hover:bg-slate-50">
+                      <td className="p-3 font-bold text-slate-900">{u.name}</td>
+                      <td className="p-3 text-slate-600">{u.email}</td>
+                      <td className="p-3">
+                        <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] uppercase ${
+                          u.role === 'admin' ? 'bg-purple-100 text-purple-700' :
+                          u.role === 'doctor' ? 'bg-blue-100 text-blue-700' :
+                          'bg-emerald-100 text-emerald-700'
+                        }`}>
+                          {u.role}
+                        </span>
+                      </td>
+                      <td className="p-3 text-slate-600">{u.phone || '—'}</td>
+                      <td className="p-3 text-slate-500">
+                        {u.doctorProfile?.department || u.city || 'Chennai'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

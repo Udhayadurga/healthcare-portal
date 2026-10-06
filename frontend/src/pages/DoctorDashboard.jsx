@@ -53,7 +53,7 @@ export const DoctorDashboard = () => {
   const [activeConsultationAppt, setActiveConsultationAppt] = useState(null);
   const [clinicalNotes, setClinicalNotes] = useState('');
   const [prescriptions, setPrescriptions] = useState([
-    { medicine: '', dosage: '', frequency: 'Twice daily', duration: '5 days' }
+    { medicine: '', medicineType: 'Tablet', dosage: '', frequency: 'Twice daily', duration: '5 days' }
   ]);
   const [recommendedLabTests, setRecommendedLabTests] = useState('');
 
@@ -263,8 +263,21 @@ export const DoctorDashboard = () => {
   const handleOpenConsultationModal = (appt) => {
     setActiveConsultationAppt(appt);
     setClinicalNotes(appt.clinicalNotes || '');
-    setPrescriptions(appt.prescriptions?.length ? appt.prescriptions : [{ medicine: '', dosage: '', frequency: 'Twice daily', duration: '5 days' }]);
     setRecommendedLabTests(appt.recommendedLabTests?.join(', ') || '');
+    setPrescriptions(
+      appt.prescriptions?.length
+        ? appt.prescriptions.map((p) => ({
+            ...p,
+            medicineType:
+              p.medicineType ||
+              ((p.medicine || '').toLowerCase().includes('syrup') || (p.dosage || '').toLowerCase().includes('ml')
+                ? 'Syrup'
+                : (p.medicine || '').toLowerCase().includes('inj')
+                ? 'Injection'
+                : 'Tablet')
+          }))
+        : [{ medicine: '', medicineType: 'Tablet', dosage: '', frequency: 'Twice daily', duration: '5 days' }]
+    );
     
     // Initialize vitals from appt or patient profile
     const existingVitals = appt.vitals || appt.patient?.latestVitals || {};
@@ -1124,7 +1137,12 @@ export const DoctorDashboard = () => {
                   <label className="text-xs font-bold text-slate-700">Digital Prescription</label>
                   <button
                     type="button"
-                    onClick={() => setPrescriptions([...prescriptions, { medicine: '', dosage: '', frequency: 'Twice daily', duration: '5 days' }])}
+                    onClick={() =>
+                      setPrescriptions([
+                        ...prescriptions,
+                        { medicine: '', medicineType: 'Tablet', dosage: '', frequency: 'Twice daily', duration: '5 days' }
+                      ])
+                    }
                     className="text-xs font-bold text-sky-600 hover:underline flex items-center gap-1"
                   >
                     <Plus className="w-3.5 h-3.5" /> Add Drug
@@ -1132,40 +1150,91 @@ export const DoctorDashboard = () => {
                 </div>
 
                 {prescriptions.map((p, index) => (
-                  <div key={index} className="grid grid-cols-4 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs">
-                    <input
-                      type="text"
-                      placeholder="Medicine Name (e.g. Atorvastatin 20mg)"
-                      value={p.medicine}
-                      onChange={(e) => {
-                        const copy = [...prescriptions];
-                        copy[index].medicine = e.target.value;
-                        setPrescriptions(copy);
-                      }}
-                      className="col-span-2 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Dosage (e.g. 1 tab)"
-                      value={p.dosage}
-                      onChange={(e) => {
-                        const copy = [...prescriptions];
-                        copy[index].dosage = e.target.value;
-                        setPrescriptions(copy);
-                      }}
-                      className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Frequency"
-                      value={p.frequency}
-                      onChange={(e) => {
-                        const copy = [...prescriptions];
-                        copy[index].frequency = e.target.value;
-                        setPrescriptions(copy);
-                      }}
-                      className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none"
-                    />
+                  <div key={index} className="grid grid-cols-1 sm:grid-cols-12 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs items-center">
+                    <div className="sm:col-span-4">
+                      <input
+                        type="text"
+                        placeholder="Medicine Name (e.g. Paracetamol)"
+                        value={p.medicine}
+                        onChange={(e) => {
+                          const copy = [...prescriptions];
+                          copy[index].medicine = e.target.value;
+                          setPrescriptions(copy);
+                        }}
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-sky-500"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <select
+                        value={p.medicineType || 'Tablet'}
+                        onChange={(e) => {
+                          const copy = [...prescriptions];
+                          copy[index].medicineType = e.target.value;
+                          setPrescriptions(copy);
+                        }}
+                        className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none font-semibold text-slate-700"
+                      >
+                        <option value="Tablet">💊 Tablet</option>
+                        <option value="Syrup">🧪 Syrup</option>
+                        <option value="Injection">💉 Injection</option>
+                        <option value="Capsule">Capsule</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <input
+                        type="text"
+                        placeholder="Dosage (e.g. 500mg, 5ml)"
+                        value={p.dosage}
+                        onChange={(e) => {
+                          const copy = [...prescriptions];
+                          copy[index].dosage = e.target.value;
+                          setPrescriptions(copy);
+                        }}
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-sky-500"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <input
+                        type="text"
+                        placeholder="Frequency"
+                        value={p.frequency}
+                        onChange={(e) => {
+                          const copy = [...prescriptions];
+                          copy[index].frequency = e.target.value;
+                          setPrescriptions(copy);
+                        }}
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-sky-500"
+                      />
+                    </div>
+                    <div className="sm:col-span-1">
+                      <input
+                        type="text"
+                        placeholder="Duration"
+                        value={p.duration}
+                        onChange={(e) => {
+                          const copy = [...prescriptions];
+                          copy[index].duration = e.target.value;
+                          setPrescriptions(copy);
+                        }}
+                        className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-sky-500"
+                      />
+                    </div>
+                    <div className="sm:col-span-1 text-right">
+                      {prescriptions.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const copy = prescriptions.filter((_, i) => i !== index);
+                            setPrescriptions(copy);
+                          }}
+                          className="text-red-500 hover:text-red-700 font-bold px-2 py-1 rounded hover:bg-red-50 transition"
+                          title="Remove drug"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

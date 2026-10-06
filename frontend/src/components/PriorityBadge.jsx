@@ -1,10 +1,23 @@
 import React from 'react';
-import { AlertTriangle, Clock, CheckCircle, Flame } from 'lucide-react';
+import { AlertTriangle, Clock, CheckCircle, CheckCircle2, Flame } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
-export const PriorityBadge = ({ level = 'Low', score = 0, isEmergency = false, showScore = true, size = 'md' }) => {
+export const PriorityBadge = ({ level = 'Low', score = 0, isEmergency = false, isDealt = false, showScore = true, size = 'md' }) => {
   const { t } = useLanguage();
   const normalizedLevel = (level || 'Low').toLowerCase();
+
+  // If the emergency / high priority case has been dealt with (e.g. Completed in history), avoid danger light
+  if (isDealt && (isEmergency || normalizedLevel === 'high')) {
+    return (
+      <span className={`inline-flex items-center gap-1.5 font-semibold rounded-full border bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs ${
+        size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-3 py-1 text-sm'
+      }`}>
+        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+        <span>{isEmergency ? (t('priorityEmergencyResolved') || 'Emergency (Resolved)') : (t('priorityHighResolved') || 'High Priority (Resolved)')}</span>
+        {showScore && <span className="text-xs px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-900 font-mono">Score: {score}</span>}
+      </span>
+    );
+  }
 
   if (isEmergency || normalizedLevel === 'high') {
     return (
